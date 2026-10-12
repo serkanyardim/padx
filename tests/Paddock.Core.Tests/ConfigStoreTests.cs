@@ -51,6 +51,26 @@ public class ConfigStoreTests : IDisposable
     }
 
     [Fact]
+    public void HiddenPads_StayHiddenThroughSaveAndLoad()
+    {
+        var store = new ConfigStore(_folder);
+        var settings = new AppSettings();
+        settings.Corrals["default"].Paddocks.Add(new PaddockModel { Id = "shown", Title = "Docs" });
+        settings.Corrals["default"].Paddocks.Add(new PaddockModel { Id = "away", Title = "Games", Hidden = true });
+
+        store.Save(new SavedConfig { Name = "with-hidden", Settings = settings });
+        var loaded = store.Load("with-hidden")!.Settings.Corrals["default"].Paddocks;
+
+        Assert.False(loaded.Single(p => p.Id == "shown").Hidden);
+        Assert.True(loaded.Single(p => p.Id == "away").Hidden);
+
+        // Loading rebuilds pads with RestorePaddock — it must carry the flag over.
+        var manager = new PaddockManager(new SettingsService(Path.Combine(_folder, "settings.json")));
+        var rebuilt = manager.RestorePaddock(loaded.Single(p => p.Id == "away"));
+        Assert.True(rebuilt.Hidden);
+    }
+
+    [Fact]
     public void List_IsNewestFirst()
     {
         var store = new ConfigStore(_folder);
