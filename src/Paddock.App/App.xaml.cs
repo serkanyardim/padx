@@ -483,16 +483,18 @@ public partial class App : Application
         }
     }
 
-    private static void ShowAbout()
+    private Views.AboutWindow? _aboutWindow;
+
+    private void ShowAbout()
     {
-        var version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?";
-        MessageBox.Show(
-            $"Paddock {version}\n\n" +
-            "Free, open-source desktop icon organizer for Windows.\n\n" +
-            "https://github.com/HappyDane/Paddock",
-            "About Paddock",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        if (_aboutWindow is null)
+        {
+            _aboutWindow = new Views.AboutWindow();
+            _aboutWindow.Closed += (_, _) => _aboutWindow = null;
+            _aboutWindow.Show();
+        }
+
+        _aboutWindow.Activate();
     }
 
     private void ExitApplication()

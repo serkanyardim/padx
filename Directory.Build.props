@@ -6,7 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Paddock</RootNamespace>
-    <Authors>Paddock Contributors</Authors>
+    <Version>2.0.0</Version>
+    <Authors>axzelx</Authors>
     <Product>Paddock</Product>
     <Description>Desktop icon organizer for Windows</Description>
   </PropertyGroup>
