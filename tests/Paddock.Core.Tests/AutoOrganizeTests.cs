@@ -70,6 +70,10 @@ public class IconCategorizerTests
         => Assert.Equal(AutoCategory.Folders, Shortcut("UT Şablonları", @"M:\dys\04. Şablonlar\UT Şablonları"));
 
     [Fact]
+    public void ShortcutToShellObject_IsSystem_WhateverItsName()
+        => Assert.Equal(AutoCategory.System, Shortcut("bin", "::{645FF040-5081-101B-9F08-00AA002F954E}"));
+
+    [Fact]
     public void SystemCategory_SortsFirst()
     {
         Assert.Equal(AutoCategory.System, Enum.GetValues<AutoCategory>().Min());

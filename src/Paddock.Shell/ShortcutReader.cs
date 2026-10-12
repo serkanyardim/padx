@@ -32,7 +32,8 @@ public static class ShortcutReader
             target = ReadUrl(path);
 
         var targetIsFolder = false;
-        if (!string.IsNullOrEmpty(target) && !target.Contains("://", StringComparison.Ordinal))
+        if (!string.IsNullOrEmpty(target) && !target.Contains("://", StringComparison.Ordinal)
+            && !target.StartsWith("::", StringComparison.Ordinal))
         {
             // Only a local check; a UNC target is judged by its name alone.
             try
@@ -60,7 +61,18 @@ public static class ShortcutReader
             ((IShellLinkW)link).GetPath(buffer, buffer.Capacity, IntPtr.Zero, SLGP_RAWPATH);
 
             var target = Environment.ExpandEnvironmentVariables(buffer.ToString());
-            return string.IsNullOrWhiteSpace(target) ? null : target;
+
+            // The desktop's "user's files" icon resolves to the profile folder;
+            // report it as the shell object it stands for.
+            if (IsUserProfile(target))
+                return UserFilesClsid;
+
+            if (!string.IsNullOrWhiteSpace(target))
+                return target;
+
+            // No file path: the link may point at a shell object (Recycle Bin,
+            // This PC…). Its parsing name then reads "::{CLSID}".
+            return ReadShellObjectName((IShellLinkW)link);
         }
         catch (Exception ex)
         {
@@ -73,6 +85,48 @@ public static class ShortcutReader
                 Marshal.FinalReleaseComObject(link);
         }
     }
+
+    private static string? ReadShellObjectName(IShellLinkW link)
+    {
+        link.GetIDList(out var pidl);
+        if (pidl == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            if (SHGetNameFromIDList(pidl, SIGDN_DESKTOPABSOLUTEPARSING, out var name) != 0 || name == IntPtr.Zero)
+                return null;
+
+            try
+            {
+                return Marshal.PtrToStringUni(name);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(name);
+            }
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(pidl);
+        }
+    }
+
+    private const string UserFilesClsid = "::{59031a47-3f72-44a7-89c5-5595fe6b30ee}";
+
+    private static bool IsUserProfile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return string.Equals(path.TrimEnd('\\'), profile.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private const uint SIGDN_DESKTOPABSOLUTEPARSING = 0x80028000;
+
+    [DllImport("shell32.dll")]
+    private static extern int SHGetNameFromIDList(IntPtr pidl, uint sigdnName, out IntPtr ppszName);
 
     private static string? ReadUrl(string path)
     {
@@ -105,5 +159,7 @@ public static class ShortcutReader
     private interface IShellLinkW
     {
         void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cch, IntPtr pfd, uint fFlags);
+
+        void GetIDList(out IntPtr ppidl);
     }
 }

@@ -148,6 +148,10 @@ public static class IconCategorizer
     {
         var target = item.Target?.Trim() ?? string.Empty;
 
+        // A link to a shell object ("::{CLSID}" — Recycle Bin, This PC…) is a system icon.
+        if (target.StartsWith("::{", StringComparison.Ordinal))
+            return AutoCategory.System;
+
         if (item.TargetIsFolder)
             return AutoCategory.Folders;
 
