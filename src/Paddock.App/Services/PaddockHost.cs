@@ -251,10 +251,6 @@ internal sealed class PaddockHost : IDisposable
         {
             await Task.Delay(800);
             Paddock.Shell.DesktopArranger.SortByItemType();
-
-            // Then This PC & co. to the front: a type sort files them under "System Folder".
-            await Task.Delay(300);
-            Paddock.Shell.DesktopArranger.MoveSystemIconsFirst();
         });
 
         return restored;

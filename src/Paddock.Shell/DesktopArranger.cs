@@ -23,10 +23,110 @@ public static class DesktopArranger
     /// <summary>PKEY_ItemNameDisplay — a second key so items of one type sort by name.</summary>
     private static readonly PropertyKey Name = new(new Guid("B725F130-47EF-101A-A5F1-02608C9EEBAC"), 10);
 
-    /// <summary>Sorts the desktop icons by item type (then name). Returns false if the desktop view was unreachable.</summary>
+    /// <summary>
+    /// Sorts the desktop by item type exactly as right-click → Sort by → Item
+    /// type does — by running that very menu command, which puts This PC and
+    /// the other built-in icons first. Falls back to a property sort plus
+    /// <see cref="MoveSystemIconsFirst"/> if the menu cannot be reached.
+    /// </summary>
     public static bool SortByItemType()
-        => WithDesktopView(view =>
+    {
+        if (WithDesktopView(InvokeSortByItemTypeCommand))
+            return true;
+
+        Log.Info("Desktop menu sort unavailable; sorting by property instead.");
+        return SortByItemTypeProperty() && MoveSystemIconsFirst();
+    }
+
+    private static bool InvokeSortByItemTypeCommand(object view)
+    {
+        var iid = IID_IContextMenu;
+        if (((IShellView)view).GetItemObject(SVGIO_BACKGROUND, ref iid, out var menuObject) != 0 || menuObject is not IContextMenu menu)
+            return false;
+
+        var hMenu = CreatePopupMenu();
+        try
         {
+            if (menu.QueryContextMenu(hMenu, 0, FirstCommand, LastCommand, CMF_NORMAL) < 0)
+                return false;
+
+            var command = FindItemTypeCommand(hMenu);
+            if (command is null)
+                return false;
+
+            Log.Info($"Sorting the desktop with its own menu command #{command}.");
+
+            var info = new CMINVOKECOMMANDINFO
+            {
+                cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFO>(),
+                lpVerb = (IntPtr)(command.Value - FirstCommand),
+                nShow = 1,
+            };
+
+            return menu.InvokeCommand(ref info) == 0;
+        }
+        finally
+        {
+            DestroyMenu(hMenu);
+            Marshal.ReleaseComObject(menu);
+        }
+    }
+
+    /// <summary>
+    /// Finds "Item type" in the background menu's "Sort by" submenu. Matched by
+    /// text first (English, Turkish), then by shape: Sort by is the submenu
+    /// right after View, and Item type its third entry (Name, Size, Item type…).
+    /// </summary>
+    private static uint? FindItemTypeCommand(IntPtr hMenu)
+    {
+        var submenus = new List<IntPtr>();
+        for (var i = 0; i < GetMenuItemCount(hMenu); i++)
+        {
+            var sub = GetSubMenu(hMenu, i);
+            if (sub != IntPtr.Zero)
+                submenus.Add(sub);
+        }
+
+        foreach (var sub in submenus)
+        {
+            for (var i = 0; i < GetMenuItemCount(sub); i++)
+            {
+                var text = MenuText(sub, i).Replace("&", string.Empty);
+                if (text.Equals("Item type", StringComparison.OrdinalIgnoreCase)
+                    || text.Equals("Öğe türü", StringComparison.OrdinalIgnoreCase))
+                {
+                    return GetMenuItemID(sub, i);
+                }
+            }
+        }
+
+        // Shape fallback for other languages — only if that submenu really is
+        // Sort by: no new-item verbs in it, and the classic four entries.
+        if (submenus.Count >= 2 && GetMenuItemCount(submenus[1]) is >= 4 and <= 8)
+        {
+            var id = GetMenuItemID(submenus[1], 2);
+            if (id is >= FirstCommand and <= LastCommand)
+            {
+                Log.Info($"Desktop sort: matched by position (\"{MenuText(submenus[1], 2)}\").");
+                return id;
+            }
+        }
+
+        return null;
+    }
+
+    private static string MenuText(IntPtr menu, int position)
+    {
+        var buffer = new System.Text.StringBuilder(128);
+        GetMenuString(menu, (uint)position, buffer, buffer.Capacity, MF_BYPOSITION);
+        return buffer.ToString();
+    }
+
+    /// <summary>Property-based sort: type then name. System icons land under "System Folder".</summary>
+    private static bool SortByItemTypeProperty()
+        => WithDesktopView(viewObject =>
+        {
+            var view = (IFolderView2)viewObject;
             var columns = new[]
             {
                 new SortColumn { Key = ItemType, Direction = SORT_ASCENDING },
@@ -44,8 +144,9 @@ public static class DesktopArranger
     /// Folder" under S.
     /// </summary>
     public static bool MoveSystemIconsFirst()
-        => WithDesktopView(view =>
+        => WithDesktopView(viewObject =>
         {
+            var view = (IFolderView2)viewObject;
             if (view.ItemCount(SVGIO_ALLVIEW, out var count) != 0 || count == 0)
                 return false;
 
@@ -107,7 +208,7 @@ public static class DesktopArranger
         return SystemDesktopIcons.FromTarget(name) is null ? -1 : SystemDesktopIcons.Rank(name);
     }
 
-    private static bool WithDesktopView(Func<IFolderView2, bool> action)
+    private static bool WithDesktopView(Func<object, bool> action)
     {
         object? windows = null;
         object? desktop = null;
@@ -132,7 +233,7 @@ public static class DesktopArranger
             if (((IShellBrowser)browser).QueryActiveShellView(out view) != 0 || view is null)
                 return false;
 
-            return action((IFolderView2)view);
+            return action(view);
         }
         catch (Exception ex)
         {
@@ -147,6 +248,81 @@ public static class DesktopArranger
                     Marshal.ReleaseComObject(com);
             }
         }
+    }
+
+    private const uint SVGIO_BACKGROUND = 0x0;
+    private const uint FirstCommand = 1;
+    private const uint LastCommand = 0x7FFF;
+    private const uint CMF_NORMAL = 0x0;
+    private const uint MF_BYPOSITION = 0x400;
+
+    private static readonly Guid IID_IContextMenu = new("000214E4-0000-0000-C000-000000000046");
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyMenu(IntPtr hMenu);
+
+    [DllImport("user32.dll")]
+    private static extern int GetMenuItemCount(IntPtr hMenu);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetSubMenu(IntPtr hMenu, int nPos);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetMenuItemID(IntPtr hMenu, int nPos);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetMenuString(IntPtr hMenu, uint uIDItem, System.Text.StringBuilder lpString, int cchMax, uint flags);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct CMINVOKECOMMANDINFO
+    {
+        public int cbSize;
+        public uint fMask;
+        public IntPtr hwnd;
+        public IntPtr lpVerb;
+        public IntPtr lpParameters;
+        public IntPtr lpDirectory;
+        public int nShow;
+        public uint dwHotKey;
+        public IntPtr hIcon;
+    }
+
+    [ComImport]
+    [Guid("000214E4-0000-0000-C000-000000000046")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IContextMenu
+    {
+        [PreserveSig]
+        int QueryContextMenu(IntPtr hMenu, uint indexMenu, uint idCmdFirst, uint idCmdLast, uint uFlags);
+
+        [PreserveSig]
+        int InvokeCommand(ref CMINVOKECOMMANDINFO pici);
+    }
+
+    /// <summary>IShellView (IOleWindow first); placeholders up to GetItemObject.</summary>
+    [ComImport]
+    [Guid("000214E3-0000-0000-C000-000000000046")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellView
+    {
+        void GetWindow();
+        void ContextSensitiveHelp();
+        void TranslateAccelerator();
+        void EnableModeless();
+        void UIActivate();
+        void Refresh();
+        void CreateViewWindow();
+        void DestroyViewWindow();
+        void GetCurrentInfo();
+        void AddPropertySheetPages();
+        void SaveViewState();
+        void SelectItem();
+
+        [PreserveSig]
+        int GetItemObject(uint uItem, ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out object? ppv);
     }
 
     private const uint SVGIO_ALLVIEW = 0x2;
