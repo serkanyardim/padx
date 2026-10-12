@@ -129,6 +129,20 @@
                                 </DockPanel>
                             </Border>
 
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding StartupLayout}" Style="{StaticResource D.Value}" Width="Auto"
+                                                   MaxWidth="170" TextTrimming="CharacterEllipsis" Margin="0,0,10,0" />
+                                        <Button Style="{StaticResource D.Button}" Content="CHANGE" Click="StartupLayout_Click" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Startup layout" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="last session, or always load a saved config" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
                             <TextBlock Text="// BEHAVIOR" Style="{StaticResource D.Section}" />
 
                             <Border Style="{StaticResource D.Row}">

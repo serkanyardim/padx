@@ -62,6 +62,19 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public const string LastSession = "Last session";
+
+    /// <summary>What Paddock starts with: the last session, or a saved config's name.</summary>
+    public string StartupLayout
+    {
+        get => S.StartupConfig ?? LastSession;
+        set
+        {
+            S.StartupConfig = value == LastSession ? null : value;
+            Changed();
+        }
+    }
+
     public bool CtrlDragCreatesPad
     {
         get => S.CtrlDragCreatesPad;

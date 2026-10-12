@@ -4,6 +4,12 @@ public class AppSettings
 {
     public int Version { get; set; } = 1;
     public bool StartWithWindows { get; set; } = true;
+
+    /// <summary>
+    /// Saved config to load every time Paddock starts, or null to carry on
+    /// with the last session's layout.
+    /// </summary>
+    public string? StartupConfig { get; set; }
     public string GlobalTheme { get; set; } = "dark";
     public bool QuickHideEnabled { get; set; } = true;
     public string QuickHideHotkey { get; set; } = "Ctrl+F12";

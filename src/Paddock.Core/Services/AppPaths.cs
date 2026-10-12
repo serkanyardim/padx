@@ -15,4 +15,7 @@ public static class AppPaths
     public static string SettingsFile => Path.Combine(DataFolder, "settings.json");
 
     public static string LogFile => Path.Combine(DataFolder, "paddock.log");
+
+    /// <summary>Saved configs (Config ▸ Save Config), one JSON file each.</summary>
+    public static string ConfigsFolder => Path.Combine(DataFolder, "configs");
 }

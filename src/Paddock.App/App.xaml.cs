@@ -85,6 +85,21 @@ public partial class App : Application
         // If a previous run died mid Auto Organize, the desktop icons could still be hidden.
         ShellHookService.SetDesktopIconsVisible(true);
 
+        // A fixed startup config replaces the last session's layout before any pad is drawn.
+        Configs = new ConfigManager(this);
+        if (Settings.Settings.StartupConfig is { } startup)
+        {
+            if (Configs.Store.Exists(startup))
+            {
+                Configs.Apply(startup);
+                ApplyLoadedSettings();
+            }
+            else
+            {
+                Log.Warn($"Startup config '{startup}' no longer exists; keeping the last session.");
+            }
+        }
+
         Host = new PaddockHost(this);
         Host.Start();
         AutoOrganizer = new AutoOrganizer(this);
@@ -203,6 +218,7 @@ public partial class App : Application
         };
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
         menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
+        menu.Items.Add(BuildConfigMenu(iconSize));
         menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
         menu.Items.Add("About...", Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
         menu.Items.Add("-");
@@ -210,6 +226,127 @@ public partial class App : Application
 
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => TogglePaddocks();
+    }
+
+    /// <summary>Config ▸ Save, Load ▸ (saved configs, newest first), folder, Reset.</summary>
+    private System.Windows.Forms.ToolStripMenuItem BuildConfigMenu(int iconSize)
+    {
+        var config = new System.Windows.Forms.ToolStripMenuItem("Config", Helpers.TrayMenuIcons.Config(iconSize));
+        var load = new System.Windows.Forms.ToolStripMenuItem("Load Config");
+
+        config.DropDownItems.Add("Save Config...", null, (_, _) => SaveConfig());
+        config.DropDownItems.Add(load);
+        config.DropDownItems.Add("-");
+        config.DropDownItems.Add("Open Configs Folder", null, (_, _) => OpenFolder(AppPaths.ConfigsFolder));
+        config.DropDownItems.Add("-");
+        config.DropDownItems.Add("Reset Config - Delete All Pads", null, (_, _) => RestoreAllIcons());
+
+        // The list is rebuilt each time, so newly saved configs show up.
+        load.DropDownItems.Add("(none)");
+        load.DropDownOpening += (_, _) =>
+        {
+            load.DropDownItems.Clear();
+            var saved = Configs.Store.List();
+
+            if (saved.Count == 0)
+                load.DropDownItems.Add(new System.Windows.Forms.ToolStripMenuItem("No saved configs") { Enabled = false });
+
+            foreach (var (name, savedAt) in saved)
+            {
+                var item = new System.Windows.Forms.ToolStripMenuItem(name) { ShortcutKeyDisplayString = savedAt.ToString("dd.MM HH:mm") };
+                item.Click += (_, _) => LoadConfig(name);
+                load.DropDownItems.Add(item);
+            }
+        };
+
+        // Sub-menus inherit the look of the main menu.
+        config.DropDown.Renderer = new Helpers.TrayMenuRenderer();
+        load.DropDown.Renderer = new Helpers.TrayMenuRenderer();
+        return config;
+    }
+
+    internal ConfigManager Configs { get; private set; } = null!;
+
+    internal void SaveConfig()
+    {
+        var name = ConfigStore.DefaultName(DateTime.Now);
+
+        while (true)
+        {
+            var answer = Views.DigitalDialog.Prompt("Save config",
+                "Saves every setting, every pad and what is in each pad under this name.", name, confirmText: "SAVE");
+            if (answer is null)
+                return;
+
+            name = answer.Trim();
+            if (ConfigStore.Validate(name) is { } error)
+            {
+                Views.DigitalDialog.Inform("Save config", error);
+                continue;
+            }
+
+            if (Configs.Store.Exists(name)
+                && !Views.DigitalDialog.Confirm("Save config", $"\"{name}\" already exists. Replace it?", "REPLACE"))
+            {
+                continue;
+            }
+
+            break;
+        }
+
+        try
+        {
+            Configs.Save(name);
+            Views.DigitalDialog.Inform("Save config", $"Saved as \"{name}\".");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not save config '{name}'.", ex);
+            Views.DigitalDialog.Inform("Save config", $"Could not save: {ex.Message}");
+        }
+    }
+
+    internal void LoadConfig(string name)
+    {
+        if (Host is null)
+            return;
+
+        if (!Views.DigitalDialog.Confirm("Load config",
+                $"Load \"{name}\"? Your pads and settings are replaced by the saved ones; " +
+                "items are moved back into the pads they were saved in.", "LOAD"))
+        {
+            return;
+        }
+
+        AutoOrganizer?.Accept();
+        _settingsWindow?.Close();
+
+        ShellHookService.SetDesktopIconsVisible(false);
+        int? missing;
+        try
+        {
+            Host.CloseAllWindows();
+            missing = Configs.Apply(name);
+            ApplyLoadedSettings();
+            Host.OpenAllWindows();
+        }
+        finally
+        {
+            ShellHookService.SetDesktopIconsVisible(true);
+        }
+
+        if (missing is null)
+            Views.DigitalDialog.Inform("Load config", $"\"{name}\" could not be read.");
+        else if (missing > 0)
+            Views.DigitalDialog.Inform("Load config", $"Loaded. {missing} saved item(s) are no longer on this PC and were skipped.");
+    }
+
+    /// <summary>Re-applies everything that reads settings once (hotkeys, Ctrl+drag, startup entry).</summary>
+    private void ApplyLoadedSettings()
+    {
+        RegisterHotkeys();
+        UpdateDesktopDrawing();
+        StartupManager.SetStartupEnabled(Settings.Settings.StartWithWindows);
     }
 
     private void InitializeHotkeys()
@@ -362,19 +499,22 @@ public partial class App : Application
     }
 
     /// <summary>Opens the folder holding settings.json and paddock.log.</summary>
-    internal static void OpenSettingsFolder()
+    internal static void OpenSettingsFolder() => OpenFolder(AppPaths.DataFolder);
+
+    private static void OpenFolder(string folder)
     {
         try
         {
+            System.IO.Directory.CreateDirectory(folder);
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = AppPaths.DataFolder,
+                FileName = folder,
                 UseShellExecute = true
             });
         }
         catch (Exception ex)
         {
-            Log.Error($"Could not open '{AppPaths.DataFolder}'.", ex);
+            Log.Error($"Could not open '{folder}'.", ex);
         }
     }
 

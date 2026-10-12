@@ -103,6 +103,35 @@ internal sealed class DigitalDialog : Window
         return dialog._confirmed;
     }
 
+    /// <summary>Lets the user pick one of <paramref name="options"/>; null when cancelled.</summary>
+    public static string? Choose(string title, string message, IReadOnlyList<string> options, string? selected)
+    {
+        var dialog = new DigitalDialog(title, message, "SELECT", "CANCEL");
+
+        var list = new ListBox
+        {
+            ItemsSource = options,
+            SelectedItem = selected ?? options.FirstOrDefault(),
+            MaxHeight = 260,
+            Margin = new Thickness(0, 12, 0, 0),
+            Background = (Brush)dialog.FindResource("D.Bg"),
+            BorderBrush = (Brush)dialog.FindResource("D.LineStrong"),
+            Foreground = (Brush)dialog.FindResource("D.Text"),
+            FontFamily = (FontFamily)dialog.FindResource("D.Mono"),
+            FontSize = 12,
+            Padding = new Thickness(2),
+        };
+        list.MouseDoubleClick += (_, _) => { dialog._confirmed = true; dialog.Close(); };
+
+        // Insert the list above the buttons.
+        var body = (StackPanel)((Border)dialog.Content).Child;
+        body.Children.Insert(body.Children.Count - 1, list);
+        dialog.Loaded += (_, _) => list.Focus();
+
+        dialog.ShowDialog();
+        return dialog._confirmed ? list.SelectedItem as string : null;
+    }
+
     /// <summary>Asks for a line of text; null when cancelled.</summary>
     public static string? Prompt(string title, string message, string initial, int selectLength = -1, string confirmText = "OK")
     {

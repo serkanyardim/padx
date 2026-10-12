@@ -42,6 +42,28 @@ internal sealed class PaddockHost : IDisposable
 
     internal IReadOnlyList<PaddockWindow> Windows => _windows;
 
+    /// <summary>Closes every pad window, leaving the layout itself alone (for loading a config).</summary>
+    internal void CloseAllWindows()
+    {
+        foreach (var window in _windows.ToList())
+            window.Close();
+
+        _windows.Clear();
+        UpdateZOrderTimer();
+    }
+
+    /// <summary>Opens a window for every pad in the layout.</summary>
+    internal void OpenAllWindows()
+    {
+        foreach (var model in _app.PaddockManager.GetPaddocks().ToList())
+        {
+            var window = CreateWindow(model);
+            window.PinToDesktop();
+        }
+
+        UpdateZOrderTimer();
+    }
+
     /// <summary>
     /// Creates the window for a pad model that is already in the layout.
     /// With <paramref name="show"/> false the caller reveals it (Auto Organize

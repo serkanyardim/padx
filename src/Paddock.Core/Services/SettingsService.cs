@@ -23,6 +23,25 @@ public class SettingsService
 
     public AppSettings Settings => _settings;
 
+    /// <summary>The same JSON shape as settings.json, for saved configs.</summary>
+    public static JsonSerializerOptions SerializerOptions => JsonOptions;
+
+    /// <summary>Swaps in a whole set of settings (loading a saved config) and saves them.</summary>
+    public void Replace(AppSettings settings)
+    {
+        settings.Appearance ??= new PadAppearance();
+        settings.Appearance.Normalize();
+        settings.AutoMode ??= new AutoModeSettings();
+        settings.AutoMode.Normalize();
+
+        lock (_lock)
+        {
+            _settings = settings;
+        }
+
+        Save();
+    }
+
     public SettingsService()
         : this(AppPaths.SettingsFile)
     {

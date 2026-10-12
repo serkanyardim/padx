@@ -38,6 +38,22 @@ public partial class SettingsWindow : Window
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e) => App.OpenSettingsFolder();
 
+    private void StartupLayout_Click(object sender, RoutedEventArgs e)
+    {
+        var options = new List<string> { SettingsViewModel.LastSession };
+        options.AddRange(CurrentApp.Configs.Store.List().Select(c => c.Name));
+
+        var choice = DigitalDialog.Choose("Startup layout",
+            options.Count == 1
+                ? "No configs saved yet — use the tray menu: Config ▸ Save Config."
+                : "Start with the last session, or load this config every time Paddock starts:",
+            options,
+            _viewModel.StartupLayout);
+
+        if (choice is not null)
+            _viewModel.StartupLayout = choice;
+    }
+
     private void RunAutoOrganize_Click(object sender, RoutedEventArgs e) => CurrentApp.RunAutoOrganize();
 
     private void ResetAppearance_Click(object sender, RoutedEventArgs e) => _viewModel.ResetAppearance();
