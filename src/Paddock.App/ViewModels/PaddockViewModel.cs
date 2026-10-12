@@ -183,9 +183,29 @@ public class PaddockViewModel : INotifyPropertyChanged
     /// </summary>
     public Brush BackgroundBrush => _backgroundBrush ??= BuildBackgroundBrush();
 
-    public Brush BorderBrush => _borderBrush ??= PadVisuals.Solid(Appearance.BorderColor, 1, Colors.Transparent);
+    public Brush BorderBrush => _borderBrush ??= IsGlass
+        ? PadVisuals.GlassEdge(EffectiveColor, Appearance.GlassShine)
+        : PadVisuals.Solid(Appearance.BorderColor, 1, Colors.Transparent);
 
-    public Thickness BorderThickness => new(Appearance.BorderThickness);
+    /// <summary>Glass always keeps at least a hairline: the lit edge is half the effect.</summary>
+    public Thickness BorderThickness => new(IsGlass ? Math.Max(1, Appearance.BorderThickness) : Appearance.BorderThickness);
+
+    // --- Glass ---
+
+    /// <summary>True when this pad is drawn as a glass material rather than a flat colour.</summary>
+    public bool IsGlass => PadMaterials.IsGlass(EffectiveColor);
+
+    /// <summary>Blur the window should ask DWM for, or null for none.</summary>
+    public GlassBlur? GlassBlur => IsGlass ? Appearance.GlassBlur : null;
+
+    public Brush SheenBrush => IsGlass
+        ? PadVisuals.GlassSheen(EffectiveColor, Appearance.GlassShine)
+        : Brushes.Transparent;
+
+    /// <summary>Radius of anything drawn just inside the edge.</summary>
+    public CornerRadius InnerCornerRadius => new(Math.Max(0, Appearance.CornerRadius - BorderThickness.Left));
+
+    public Visibility SheenVisibility => IsGlass && Appearance.GlassShine > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public CornerRadius CornerRadius => new(Appearance.CornerRadius);
 
@@ -485,8 +505,9 @@ public class PaddockViewModel : INotifyPropertyChanged
         RemoveRequested?.Invoke();
     }
 
-    private Brush BuildBackgroundBrush()
-        => PadVisuals.Solid(EffectiveColor, Appearance.PadOpacity, FallbackBackground);
+    private Brush BuildBackgroundBrush() => IsGlass
+        ? PadVisuals.GlassFill(EffectiveColor, Appearance.GlassTint)
+        : PadVisuals.Solid(EffectiveColor, Appearance.PadOpacity, FallbackBackground);
 
     /// <summary>Forces the cached brushes to be rebuilt on next use.</summary>
     private void InvalidateBrushes()

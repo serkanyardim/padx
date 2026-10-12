@@ -9,12 +9,19 @@ namespace Paddock.App.Helpers;
 /// <summary>A named colour offered in pickers and the pad colour menu.</summary>
 public sealed record PaletteColor(string Name, string Hex)
 {
-    public Brush Brush { get; } = PadVisuals.Solid(Hex, 1, Colors.Transparent);
+    public Brush Brush { get; } = PadVisuals.SwatchBrush(Hex);
 }
 
 /// <summary>Colours offered for pads, plus a few extras for edges and text.</summary>
 public static class PadPalette
 {
+    /// <summary>Glass materials, offered above the flat colours.</summary>
+    public static IReadOnlyList<PaletteColor> Materials { get; } =
+    [
+        new("Glass", PadMaterials.Glass),
+        new("Frost", PadMaterials.Frost),
+    ];
+
     public static IReadOnlyList<PaletteColor> PadColors { get; } =
     [
         new("Carbon", "#12161C"),
@@ -79,9 +86,10 @@ public static class PadVisuals
     public static Color Parse(string? value, Color fallback)
         => TryParse(value, out var colour) ? colour : fallback;
 
-    /// <summary>Normalises any colour string WPF understands to #RRGGBB, or null.</summary>
+    /// <summary>Normalises a material name, or any colour WPF understands to #RRGGBB; null if neither.</summary>
     public static string? Normalize(string? value)
-        => TryParse(value, out var c) ? $"#{c.R:X2}{c.G:X2}{c.B:X2}" : null;
+        => PadMaterials.Normalize(value)
+           ?? (TryParse(value, out var c) ? $"#{c.R:X2}{c.G:X2}{c.B:X2}" : null);
 
     public static Brush Solid(string? hex, double opacity, Color fallback)
     {
@@ -98,9 +106,74 @@ public static class PadVisuals
     /// <summary>Icon label colour that stays readable on the given pad colour.</summary>
     public static Brush LabelBrushFor(string? padHex)
     {
+        if (PadMaterials.IsGlass(padHex))
+            return IsFrost(padHex) ? DarkText : LightText;
+
         var c = Parse(padHex, Colors.Black);
         var luminance = (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255;
         return luminance > 0.55 ? DarkText : LightText;
+    }
+
+    // --- Glass ---
+
+    private static bool IsFrost(string? material)
+        => string.Equals(material, PadMaterials.Frost, StringComparison.OrdinalIgnoreCase);
+
+    private static Brush Freeze(Brush brush)
+    {
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Color White(double alpha) => Color.FromArgb((byte)Math.Clamp(alpha * 255, 0, 255), 255, 255, 255);
+
+    /// <summary>
+    /// The colour laid over the blur. Dark glass is smoked; frost is milky.
+    /// A slight top-to-bottom deepening keeps it from looking like flat paint.
+    /// </summary>
+    public static Brush GlassFill(string material, double tint)
+    {
+        var (r, g, b) = IsFrost(material) ? ((byte)0xF2, (byte)0xF6, (byte)0xFA) : ((byte)0x08, (byte)0x0D, (byte)0x14);
+        var top = (byte)Math.Clamp(tint * 0.85 * 255, 0, 255);
+        var bottom = (byte)Math.Clamp(tint * 255, 0, 255);
+
+        return Freeze(new LinearGradientBrush(
+            Color.FromArgb(top, r, g, b), Color.FromArgb(bottom, r, g, b), 90));
+    }
+
+    /// <summary>Diagonal reflection across the upper part of the glass.</summary>
+    public static Brush GlassSheen(string material, double shine)
+    {
+        var s = shine * (IsFrost(material) ? 1.2 : 1.0);
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0.55, 1) };
+        brush.GradientStops.Add(new GradientStop(White(0.30 * s), 0));
+        brush.GradientStops.Add(new GradientStop(White(0.10 * s), 0.38));
+        brush.GradientStops.Add(new GradientStop(White(0), 0.52));
+        brush.GradientStops.Add(new GradientStop(White(0.05 * s), 1));
+        return Freeze(brush);
+    }
+
+    /// <summary>Edge that catches the light at the top and fades towards the bottom.</summary>
+    public static Brush GlassEdge(string material, double shine)
+    {
+        var s = Math.Max(0.15, shine) * (IsFrost(material) ? 1.3 : 1.0);
+        var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+        brush.GradientStops.Add(new GradientStop(White(0.75 * s), 0));
+        brush.GradientStops.Add(new GradientStop(White(0.22 * s), 0.35));
+        brush.GradientStops.Add(new GradientStop(White(0.10 * s), 1));
+        return Freeze(brush);
+    }
+
+    /// <summary>Small sample for menus and pickers: a flat colour, or a glassy gradient.</summary>
+    public static Brush SwatchBrush(string value)
+    {
+        if (!PadMaterials.IsGlass(value))
+            return Solid(value, 1, Colors.Transparent);
+
+        var brush = IsFrost(value)
+            ? new LinearGradientBrush(Color.FromRgb(0xFF, 0xFF, 0xFF), Color.FromRgb(0xAE, 0xC0, 0xD2), 45)
+            : new LinearGradientBrush(Color.FromRgb(0x7F, 0xA6, 0xC4), Color.FromRgb(0x14, 0x1E, 0x2A), 45);
+        return Freeze(brush);
     }
 
     public static FontFamily Font(string? name)

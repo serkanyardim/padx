@@ -22,6 +22,11 @@ public partial class ColorField : UserControl
 
     public static readonly DependencyProperty SwatchBrushProperty = SwatchBrushKey.DependencyProperty;
 
+    public static readonly DependencyProperty AllowMaterialsProperty = DependencyProperty.Register(
+        nameof(AllowMaterials), typeof(bool), typeof(ColorField),
+        new PropertyMetadata(false, (d, e) => ((ColorField)d).MaterialList.Visibility =
+            (bool)e.NewValue ? Visibility.Visible : Visibility.Collapsed));
+
     public ColorField()
     {
         InitializeComponent();
@@ -34,6 +39,13 @@ public partial class ColorField : UserControl
         set => SetValue(ColorProperty, value);
     }
 
+    /// <summary>Also offer the glass materials (for pad colours, not edges or text).</summary>
+    public bool AllowMaterials
+    {
+        get => (bool)GetValue(AllowMaterialsProperty);
+        set => SetValue(AllowMaterialsProperty, value);
+    }
+
     public Brush SwatchBrush => (Brush)GetValue(SwatchBrushProperty);
 
     private static void OnColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -41,15 +53,15 @@ public partial class ColorField : UserControl
 
     private void Sync()
     {
-        HexBox.Text = Color;
-        SetValue(SwatchBrushKey, PadVisuals.Solid(Color, 1, Colors.Transparent));
+        HexBox.Text = Color?.ToUpperInvariant() ?? string.Empty;
+        SetValue(SwatchBrushKey, PadVisuals.SwatchBrush(Color ?? string.Empty));
     }
 
     private void Commit()
     {
         var normalized = PadVisuals.Normalize(HexBox.Text);
 
-        if (normalized is null)
+        if (normalized is null || (!AllowMaterials && Paddock.Core.Models.PadMaterials.IsGlass(normalized)))
             Sync();
         else
             Color = normalized;

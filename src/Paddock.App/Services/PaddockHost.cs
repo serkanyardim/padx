@@ -53,6 +53,7 @@ internal sealed class PaddockHost : IDisposable
 
         UpdateZOrderTimer();
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
         _app.DesktopIconService.WatchStore(OnStoreChanged);
 
         LogStartupState();
@@ -249,6 +250,7 @@ internal sealed class PaddockHost : IDisposable
         _disposed = true;
         _zOrderTimer.Stop();
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
 
         foreach (var window in _windows.ToList())
         {
@@ -322,6 +324,13 @@ internal sealed class PaddockHost : IDisposable
 
             PinAllToDesktop();
         });
+    }
+
+    /// <summary>Toggling Windows' transparency effects decides whether glass can blur.</summary>
+    private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (e.Category == UserPreferenceCategory.General)
+            _app.Dispatcher.InvokeAsync(ApplyAppearance);
     }
 
     private void OnStoreChanged()

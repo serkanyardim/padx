@@ -21,6 +21,7 @@ public partial class PaddockWindow : Window
     private readonly PaddockViewModel _viewModel;
     private readonly ShellHookService _shellHook;
     private HwndSource? _source;
+    private Paddock.Core.Models.GlassBlur? _appliedBlur;
 
     public PaddockWindow(PaddockViewModel viewModel, ShellHookService shellHook)
     {
@@ -72,6 +73,49 @@ public partial class PaddockWindow : Window
         // and an owned window is liable to be dragged back up the z-order with
         // its owner, which is exactly what we are trying to prevent.
         _shellHook.SendToDesktopLevel(handle);
+        ApplyGlass();
+    }
+
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        UpdateGlassRegion();
+    }
+
+    /// <summary>Turns the DWM blur on, off or to another strength to match the pad.</summary>
+    private void ApplyGlass()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+            return;
+
+        var blur = GlassEffect.IsBlurAvailable ? _viewModel.GlassBlur : null;
+        if (blur != _appliedBlur)
+        {
+            _appliedBlur = blur;
+            GlassEffect.Apply(handle, blur);
+        }
+
+        UpdateGlassRegion();
+    }
+
+    /// <summary>
+    /// The blur covers the whole window rectangle; clip it to the pad's rounded
+    /// corners so it does not poke out past them.
+    /// </summary>
+    private void UpdateGlassRegion()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+            return;
+
+        var scale = Helpers.ScreenHelper.DipScale;
+        GlassEffect.SetRoundedRegion(
+            handle,
+            (int)Math.Round(ActualWidth * scale),
+            (int)Math.Round(ActualHeight * scale),
+            (int)Math.Round(_viewModel.CornerRadius.TopLeft * scale),
+            _appliedBlur is not null);
     }
 
     protected override void OnClosed(EventArgs e)
@@ -91,6 +135,12 @@ public partial class PaddockWindow : Window
     {
         switch (e.PropertyName)
         {
+            // ApplyAppearance raises an all-properties change.
+            case "":
+            case null:
+                ApplyGlass();
+                break;
+
             case nameof(PaddockViewModel.X):
             case nameof(PaddockViewModel.Y):
                 Left = _viewModel.X;

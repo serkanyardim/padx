@@ -90,6 +90,12 @@
             SnapsToDevicePixels="True">
 
         <Grid>
+            <!-- Glass reflection, under everything else -->
+            <Border Background="{Binding SheenBrush}"
+                    Visibility="{Binding SheenVisibility}"
+                    CornerRadius="{Binding InnerCornerRadius}"
+                    IsHitTestVisible="False" />
+
             <!-- Icon grid (hidden when rolled up) -->
             <ScrollViewer Margin="6,36,4,6"
                           VerticalScrollBarVisibility="Auto"

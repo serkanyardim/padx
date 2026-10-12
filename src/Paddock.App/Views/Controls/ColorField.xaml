@@ -32,6 +32,36 @@
                AllowsTransparency="True" PopupAnimation="Fade">
             <Border Background="{StaticResource D.Panel}" BorderBrush="{StaticResource D.LineStrong}"
                     BorderThickness="1" Padding="6">
+                <StackPanel>
+                <!-- Glass materials, only where a pad colour is being picked -->
+                <ItemsControl x:Name="MaterialList" ItemsSource="{x:Static helpers:PadPalette.Materials}"
+                              Visibility="Collapsed" Margin="0,0,0,6">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Click="PaletteColor_Click" Tag="{Binding Hex}" Cursor="Hand" Margin="1">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Height="26" Padding="3" BorderThickness="1"
+                                                BorderBrush="{StaticResource D.LineStrong}">
+                                            <DockPanel>
+                                                <Border Width="18" Background="{Binding Brush}" Margin="0,0,8,0" />
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                           FontFamily="{StaticResource D.Mono}" FontSize="11"
+                                                           Foreground="{StaticResource D.Text}" />
+                                            </DockPanel>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <ItemsControl ItemsSource="{x:Static helpers:PadPalette.AllColors}" Width="208">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -59,6 +89,7 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                </StackPanel>
             </Border>
         </Popup>
     </StackPanel>

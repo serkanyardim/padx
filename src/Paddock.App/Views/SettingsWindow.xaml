@@ -21,6 +21,38 @@
     <Window.Resources>
         <helpers:EqualsConverter x:Key="Eq" />
 
+        <!-- Fake wallpaper for the preview: colourful enough that blur and tint read clearly -->
+        <DrawingBrush x:Key="PreviewBackdrop" Stretch="None" AlignmentX="Left" AlignmentY="Top">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Geometry="M0,0 H552 V166 H0 Z">
+                        <GeometryDrawing.Brush>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#1D3B5E" Offset="0" />
+                                <GradientStop Color="#3A2456" Offset="0.55" />
+                                <GradientStop Color="#0F4B4B" Offset="1" />
+                            </LinearGradientBrush>
+                        </GeometryDrawing.Brush>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FF4D8D">
+                        <GeometryDrawing.Geometry><EllipseGeometry Center="190,52" RadiusX="44" RadiusY="44" /></GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#FFC940">
+                        <GeometryDrawing.Geometry><EllipseGeometry Center="330,128" RadiusX="58" RadiusY="58" /></GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#4DFFB8">
+                        <GeometryDrawing.Geometry><EllipseGeometry Center="392,34" RadiusX="30" RadiusY="30" /></GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#3D8BFD">
+                        <GeometryDrawing.Geometry><RectangleGeometry Rect="60,96,90,90" /></GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#7FE7FF">
+                        <GeometryDrawing.Geometry><EllipseGeometry Center="470,130" RadiusX="24" RadiusY="24" /></GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
         <!-- Key cap used in the mouse reference list -->
         <Style x:Key="Chip" TargetType="Border">
             <Setter Property="BorderBrush" Value="{StaticResource D.LineStrong}" />
@@ -287,22 +319,28 @@
                         <Border DockPanel.Dock="Top" Height="168" Margin="22,14,22,4"
                                 BorderBrush="{StaticResource D.Line}" BorderThickness="1">
                             <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                    <GradientStop Color="#1D3B5E" Offset="0" />
-                                    <GradientStop Color="#3A2456" Offset="0.55" />
-                                    <GradientStop Color="#0F4B4B" Offset="1" />
-                                </LinearGradientBrush>
+                                <StaticResource ResourceKey="PreviewBackdrop" />
                             </Border.Background>
                             <Grid>
                                 <TextBlock Text="PREVIEW" Margin="8,6" FontFamily="{StaticResource D.Mono}"
                                            FontSize="9" Foreground="#80FFFFFF" />
 
                                 <Border Width="280" Height="136" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Background="{Binding PreviewBackground}"
                                         BorderBrush="{Binding PreviewBorderBrush}"
                                         BorderThickness="{Binding PreviewBorderThickness}"
                                         CornerRadius="{Binding PreviewCornerRadius}">
-                                    <Grid>
+                                    <Grid ClipToBounds="True">
+                                        <!-- Stand-in for the desktop blur: the same backdrop, blurred -->
+                                        <Rectangle Width="552" Height="166" Margin="-137,-16,0,0"
+                                                   HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                   Fill="{StaticResource PreviewBackdrop}"
+                                                   Visibility="{Binding PreviewBlurVisibility}">
+                                            <Rectangle.Effect>
+                                                <BlurEffect Radius="{Binding PreviewBlurRadius}" KernelType="Gaussian" />
+                                            </Rectangle.Effect>
+                                        </Rectangle>
+                                        <Border Background="{Binding PreviewBackground}" />
+                                        <Border Background="{Binding PreviewSheen}" Visibility="{Binding PreviewSheenVisibility}" />
                                         <Border Height="32" VerticalAlignment="Top"
                                                 Background="{Binding PreviewTitleBarBrush}"
                                                 CornerRadius="{Binding PreviewTitleBarCornerRadius}">
@@ -350,7 +388,7 @@
                                 <Border Style="{StaticResource D.Row}">
                                     <DockPanel>
                                         <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
-                                                             Color="{Binding PadColor}" />
+                                                             AllowMaterials="True" Color="{Binding PadColor}" />
                                         <StackPanel>
                                             <TextBlock Text="Default color" Style="{StaticResource D.Label}" />
                                             <TextBlock Text="right-click a pad → color to give it its own" Style="{StaticResource D.Hint}" />
@@ -382,6 +420,57 @@
                                         <TextBlock Text="Corner radius" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
                                     </DockPanel>
                                 </Border>
+
+                                <TextBlock Text="// GLASS" Style="{StaticResource D.Section}" />
+                                <TextBlock Style="{StaticResource D.Hint}" Margin="0,0,0,4"
+                                           Text="for pads colored glass or frost — pick it as the default color above, or per pad from its menu" />
+
+                                <StackPanel Opacity="{Binding GlassOptionsOpacity}">
+                                    <Border Style="{StaticResource D.Row}">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <RadioButton Style="{StaticResource D.Segment}" Content="OFF"
+                                                             IsChecked="{Binding GlassBlur, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                                                <RadioButton Style="{StaticResource D.Segment}" Content="LIGHT"
+                                                             IsChecked="{Binding GlassBlur, Converter={StaticResource Eq}, ConverterParameter=Light}" />
+                                                <RadioButton Style="{StaticResource D.Segment}" Content="STRONG"
+                                                             IsChecked="{Binding GlassBlur, Converter={StaticResource Eq}, ConverterParameter=Strong}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="Blur" Style="{StaticResource D.Label}" />
+                                                <TextBlock Text="strong = acrylic, with a frosted grain" Style="{StaticResource D.Hint}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource D.Row}">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="1"
+                                                        Value="{Binding GlassTint}" />
+                                                <TextBlock Style="{StaticResource D.Value}" Text="{Binding GlassTint, StringFormat={}{0:P0}}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="Tint" Style="{StaticResource D.Label}" />
+                                                <TextBlock Text="smoke for glass, milk for frost" Style="{StaticResource D.Hint}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource D.Row}">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="1"
+                                                        Value="{Binding GlassShine}" />
+                                                <TextBlock Style="{StaticResource D.Value}" Text="{Binding GlassShine, StringFormat={}{0:P0}}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="Shine" Style="{StaticResource D.Label}" />
+                                                <TextBlock Text="reflection and lit edge" Style="{StaticResource D.Hint}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </StackPanel>
 
                                 <TextBlock Text="// EDGE" Style="{StaticResource D.Section}" />
 

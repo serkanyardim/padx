@@ -25,7 +25,9 @@ public class SettingsViewModel : INotifyPropertyChanged
         nameof(PreviewCornerRadius), nameof(PreviewTitleBarBrush), nameof(PreviewTitleBarCornerRadius),
         nameof(PreviewTitleBrush), nameof(PreviewTitleFont), nameof(PreviewTitleAlignment),
         nameof(PreviewTitle), nameof(PreviewLabelBrush), nameof(PreviewLabelVisibility),
-        nameof(PreviewIconSize), nameof(PreviewCellWidth),
+        nameof(PreviewIconSize), nameof(PreviewCellWidth), nameof(PreviewSheen),
+        nameof(PreviewSheenVisibility), nameof(PreviewBlurVisibility), nameof(PreviewBlurRadius),
+        nameof(IsGlass), nameof(GlassOptionsOpacity),
     ];
 
     private readonly SettingsService _settings;
@@ -136,6 +138,31 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { A.PadOpacity = Math.Round(value, 2); AppearanceChanged(); }
     }
 
+    // ===== Appearance: glass =====
+
+    /// <summary>Glass options only matter when the default colour is glass, or a pad uses it.</summary>
+    public bool IsGlass => PadMaterials.IsGlass(A.PadColor);
+
+    public double GlassOptionsOpacity => IsGlass ? 1 : 0.6;
+
+    public GlassBlur GlassBlur
+    {
+        get => A.GlassBlur;
+        set { A.GlassBlur = value; AppearanceChanged(); }
+    }
+
+    public double GlassTint
+    {
+        get => A.GlassTint;
+        set { A.GlassTint = Math.Round(value, 2); AppearanceChanged(); }
+    }
+
+    public double GlassShine
+    {
+        get => A.GlassShine;
+        set { A.GlassShine = Math.Round(value, 2); AppearanceChanged(); }
+    }
+
     public double CornerRadius
     {
         get => A.CornerRadius;
@@ -222,9 +249,24 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     // ===== Live preview =====
 
-    public Brush PreviewBackground => PadVisuals.Solid(A.PadColor, A.PadOpacity, Colors.Black);
-    public Brush PreviewBorderBrush => PadVisuals.Solid(A.BorderColor, 1, Colors.Transparent);
-    public Thickness PreviewBorderThickness => new(A.BorderThickness);
+    public Brush PreviewBackground => IsGlass
+        ? PadVisuals.GlassFill(A.PadColor, A.GlassTint)
+        : PadVisuals.Solid(A.PadColor, A.PadOpacity, Colors.Black);
+
+    public Brush PreviewBorderBrush => IsGlass
+        ? PadVisuals.GlassEdge(A.PadColor, A.GlassShine)
+        : PadVisuals.Solid(A.BorderColor, 1, Colors.Transparent);
+
+    public Thickness PreviewBorderThickness => new(IsGlass ? Math.Max(1, A.BorderThickness) : A.BorderThickness);
+
+    public Brush PreviewSheen => IsGlass ? PadVisuals.GlassSheen(A.PadColor, A.GlassShine) : Brushes.Transparent;
+
+    public Visibility PreviewSheenVisibility => IsGlass ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>The preview fakes the desktop blur with a blurred copy of its own backdrop.</summary>
+    public Visibility PreviewBlurVisibility => IsGlass && A.GlassBlur != GlassBlur.Off ? Visibility.Visible : Visibility.Collapsed;
+
+    public double PreviewBlurRadius => A.GlassBlur == GlassBlur.Strong ? 28 : 12;
     public System.Windows.CornerRadius PreviewCornerRadius => new(A.CornerRadius);
     public Brush PreviewTitleBarBrush => PadVisuals.Solid(A.TitleBarColor, A.TitleBarOpacity, Colors.Black);
 
