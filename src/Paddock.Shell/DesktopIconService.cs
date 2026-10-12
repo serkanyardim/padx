@@ -175,9 +175,12 @@ public sealed class DesktopIconService : IDisposable
     {
         try
         {
+            // Hidden + System: Explorer treats it as a protected OS item, so it
+            // stays out of sight even when "show hidden items" is switched on.
             var info = Directory.CreateDirectory(StoreRoot);
-            if (!info.Attributes.HasFlag(FileAttributes.Hidden))
-                info.Attributes |= FileAttributes.Hidden;
+            const FileAttributes wanted = FileAttributes.Hidden | FileAttributes.System;
+            if ((info.Attributes & wanted) != wanted)
+                info.Attributes |= wanted;
         }
         catch (Exception ex)
         {
