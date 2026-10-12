@@ -400,6 +400,17 @@
                             <Border Style="{StaticResource D.Row}">
                                 <DockPanel>
                                     <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding IncludeAllUsersDesktop}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Include all-users shortcuts" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="programs installed for everyone; asks for admin permission, and removes them for other accounts on this pc too" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
                                               VerticalAlignment="Center" IsChecked="{Binding AnimateAutoMode}" />
                                     <StackPanel>
                                         <TextBlock Text="Animate" Style="{StaticResource D.Label}" />

@@ -84,6 +84,36 @@ public sealed class DesktopIconService : IDisposable
         return items;
     }
 
+    /// <summary>Folder in the store where all-users desktop items wait between elevated moves.</summary>
+    public const string PublicStagingFolder = "_public";
+
+    /// <summary>
+    /// Files on the all-users desktop (shortcuts installed "for everyone").
+    /// Moving these needs administrator rights — see <see cref="ElevatedMover"/>.
+    /// </summary>
+    public IReadOnlyList<string> GetCommonDesktopItems()
+    {
+        var items = new List<string>();
+
+        if (string.IsNullOrEmpty(CommonDesktopRoot) || !Directory.Exists(CommonDesktopRoot))
+            return items;
+
+        try
+        {
+            foreach (var entry in Directory.EnumerateFiles(CommonDesktopRoot))
+            {
+                if (!IsHiddenOrIgnored(entry))
+                    items.Add(entry);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Cannot list the all-users desktop '{CommonDesktopRoot}': {ex.Message}");
+        }
+
+        return items;
+    }
+
     /// <summary>
     /// Watches the store for changes made outside the app (files dropped into a
     /// paddock folder from Explorer, items deleted, and so on). The callback is

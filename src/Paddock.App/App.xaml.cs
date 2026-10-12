@@ -43,6 +43,13 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Elevated helper run: do the file moves and leave. No UI, no mutex.
+        if (e.Args.Length == 2 && e.Args[0] == ElevatedMover.Argument)
+        {
+            Shutdown(ElevatedMover.Execute(e.Args[1]));
+            return;
+        }
+
         InstallCrashHandlers();
         Log.Info($"Paddock starting (v{typeof(App).Assembly.GetName().Version}).");
 
@@ -81,6 +88,7 @@ public partial class App : Application
         Host = new PaddockHost(this);
         Host.Start();
         AutoOrganizer = new AutoOrganizer(this);
+        AutoOrganizer.RecoverStagedItems();
 
         InitializeHotkeys();
         UpdateDesktopDrawing();

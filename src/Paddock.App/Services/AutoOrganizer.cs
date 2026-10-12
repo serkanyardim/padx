@@ -62,6 +62,9 @@ internal sealed class AutoOrganizer
         public string? OriginPadId { get; } = originPadId;
 
         public bool WasManaged { get; init; } = true;
+
+        /// <summary>Came from the all-users desktop: moving it back needs elevation.</summary>
+        public bool FromPublic { get; init; }
     }
 
     /// <summary>Everything decided before a single file moves.</summary>
@@ -89,9 +92,12 @@ internal sealed class AutoOrganizer
         var pads = Manager.GetPaddocks().ToList();
         var unlocked = pads.Where(p => !p.Locked).ToList();
         var desktopItems = _app.DesktopIconService.GetDesktopItems();
+        var publicItems = _app.Settings.Settings.AutoMode.IncludeAllUsersDesktop
+            ? _app.DesktopIconService.GetCommonDesktopItems()
+            : [];
         var padItems = unlocked.Sum(p => p.Icons.Count);
 
-        if (desktopItems.Count + padItems == 0)
+        if (desktopItems.Count + publicItems.Count + padItems == 0)
         {
             DigitalDialog.Inform("Nothing to organize",
                 pads.Count > 0
@@ -102,8 +108,11 @@ internal sealed class AutoOrganizer
 
         if (unlocked.Count > 0 && !DigitalDialog.Confirm("Auto organize",
                 $"{unlocked.Count} unlocked pad(s) will be taken apart and rebuilt by category, together with " +
-                $"{desktopItems.Count} item(s) from the desktop.\n\n" +
-                "Locked pads stay exactly as they are. You can revert afterwards.",
+                $"{desktopItems.Count + publicItems.Count} item(s) from the desktop.\n\n" +
+                "Locked pads stay exactly as they are. You can revert afterwards." +
+                (publicItems.Count > 0
+                    ? $"\n\n{publicItems.Count} shortcut(s) are on the all-users desktop; Windows will ask for administrator permission to move them."
+                    : string.Empty),
                 "ORGANIZE"))
         {
             return;
@@ -112,7 +121,7 @@ internal sealed class AutoOrganizer
         _busy = true;
         try
         {
-            await OrganizeAsync(unlocked, desktopItems);
+            await OrganizeAsync(unlocked, desktopItems, publicItems);
         }
         finally
         {
@@ -121,13 +130,19 @@ internal sealed class AutoOrganizer
         }
     }
 
-    private async Task OrganizeAsync(List<PaddockModel> unlocked, IReadOnlyList<string> desktopItems)
+    private async Task OrganizeAsync(List<PaddockModel> unlocked, IReadOnlyList<string> desktopItems, IReadOnlyList<string> publicItems)
     {
         var animate = _app.Settings.Settings.AutoMode.Animate;
 
         var items = desktopItems.Select(p => new Item(p, null)).ToList();
+        items.AddRange(publicItems.Select(p => new Item(p, null) { FromPublic = true }));
         foreach (var pad in unlocked)
             items.AddRange(pad.Icons.Select(i => new Item(i.DesktopPath, pad.Id) { WasManaged = i.Managed }));
+
+        // All-users shortcuts first go (elevated) into a staging folder we own;
+        // whatever the user declines simply stays out of the run.
+        if (items.Any(i => i.FromPublic))
+            await StagePublicItemsAsync(items);
 
         // Decide everything first. If anything here fails, nothing has moved yet.
         Plan plan;
@@ -179,6 +194,72 @@ internal sealed class AutoOrganizer
 
         _pending = new PendingRun(snapshot, items, createdIds);
         ShowBar($"{created.Count} pads · {total} icons");
+    }
+
+    /// <summary>
+    /// Moves the all-users shortcuts into the store's staging folder with one
+    /// UAC prompt, updating their paths; any that did not move are dropped
+    /// from the run.
+    /// </summary>
+    private async Task StagePublicItemsAsync(List<Item> items)
+    {
+        var store = _app.IconStore;
+        var staging = store.EnsurePaddockFolder(DesktopIconService.PublicStagingFolder);
+        var publicItems = items.Where(i => i.FromPublic).ToList();
+
+        var requests = publicItems
+            .Select(i => new ElevatedMover.MoveRequest(i.Path, System.IO.Path.Combine(staging, System.IO.Path.GetFileName(i.Path))))
+            .ToList();
+
+        // The elevated process is waited on off the UI thread.
+        var done = await Task.Run(() => ElevatedMover.Run(requests)) ?? [];
+        var movedTo = done.ToDictionary(d => d.From, d => d.To, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in publicItems)
+        {
+            if (movedTo.TryGetValue(item.Path, out var staged))
+                item.Path = staged;
+            else
+                items.Remove(item);
+        }
+
+        Log.Info($"All-users desktop: {movedTo.Count} of {publicItems.Count} shortcut(s) taken in.");
+    }
+
+    /// <summary>
+    /// Sends staged all-users shortcuts back to the all-users desktop (one UAC
+    /// prompt). If that is declined they go to the user's own desktop instead,
+    /// so nothing is ever left stranded in the store.
+    /// </summary>
+    private async Task ReturnStagedItemsAsync()
+    {
+        var store = _app.IconStore;
+        var staged = store.ListPaddockItems(DesktopIconService.PublicStagingFolder);
+        if (staged.Count == 0)
+            return;
+
+        var common = _app.DesktopIconService.CommonDesktopRoot;
+        var requests = staged
+            .Select(p => new ElevatedMover.MoveRequest(p, System.IO.Path.Combine(common, System.IO.Path.GetFileName(p))))
+            .ToList();
+
+        var done = await Task.Run(() => ElevatedMover.Run(requests));
+
+        foreach (var leftover in store.ListPaddockItems(DesktopIconService.PublicStagingFolder))
+            store.MoveToDesktop(leftover);
+
+        if (done is null)
+            Log.Info($"All-users shortcuts could not go back without permission; {staged.Count} put on your own desktop.");
+    }
+
+    /// <summary>
+    /// After a crash mid-run, staged all-users shortcuts would sit unseen in
+    /// the store. Put them on the user's desktop at startup (no prompt).
+    /// </summary>
+    public void RecoverStagedItems()
+    {
+        foreach (var item in _app.IconStore.ListPaddockItems(DesktopIconService.PublicStagingFolder))
+            _app.IconStore.MoveToDesktop(item);
     }
 
     /// <summary>Categories, pad sizes, positions and colours — no side effects.</summary>
@@ -334,7 +415,13 @@ internal sealed class AutoOrganizer
                         .Select(Manager.GetPaddock)
                         .FirstOrDefault(p => p?.Icons.Any(i => PathEquals(i.DesktopPath, item.Path)) == true);
 
-                    if (item.OriginPadId is null)
+                    if (item.FromPublic)
+                    {
+                        // Back to staging; the elevated step below returns them.
+                        if (holder is not null && _app.IconStore.MoveIntoPaddock(item.Path, DesktopIconService.PublicStagingFolder) is not null)
+                            Manager.RemoveIconFromPaddock(holder.Id, item.Path);
+                    }
+                    else if (item.OriginPadId is null)
                     {
                         if (holder is not null)
                             Manager.EjectIcon(holder.Id, item.Path);
@@ -358,6 +445,9 @@ internal sealed class AutoOrganizer
                 foreach (var model in restored)
                     restoredWindows.Add(Host.AddWindow(model, show: false));
             }
+
+            if (run.Items.Any(i => i.FromPublic))
+                await ReturnStagedItemsAsync();
 
             // Pads that were faded out but never removed come back too.
             foreach (var window in Host.Windows.Where(w => w.Opacity < 1 && !restoredWindows.Contains(w)))

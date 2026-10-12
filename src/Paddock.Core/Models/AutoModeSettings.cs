@@ -20,6 +20,12 @@ public class AutoModeSettings
     /// <summary>Lock the created pads so a later Auto Organize leaves them alone.</summary>
     public bool LockCreatedPads { get; set; }
 
+    /// <summary>
+    /// Also organize shortcuts on the all-users desktop. Needs administrator
+    /// permission (one prompt per run) and removes them for other accounts too.
+    /// </summary>
+    public bool IncludeAllUsersDesktop { get; set; } = true;
+
     /// <summary>Hide, then reveal pads one by one, instead of switching instantly.</summary>
     public bool Animate { get; set; } = true;
 

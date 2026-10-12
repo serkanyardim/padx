@@ -125,6 +125,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { Auto.LockCreatedPads = value; Changed(); }
     }
 
+    public bool IncludeAllUsersDesktop
+    {
+        get => Auto.IncludeAllUsersDesktop;
+        set { Auto.IncludeAllUsersDesktop = value; Changed(); }
+    }
+
     public bool AnimateAutoMode
     {
         get => Auto.Animate;
