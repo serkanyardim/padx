@@ -228,41 +228,36 @@ public partial class App : Application
         _trayIcon.DoubleClick += (_, _) => TogglePaddocks();
     }
 
-    /// <summary>Config ▸ Save, Load ▸ (saved configs, newest first), folder, Reset.</summary>
+    /// <summary>Config ▸ Save, Load (opens the configs window), folder, Reset.</summary>
     private System.Windows.Forms.ToolStripMenuItem BuildConfigMenu(int iconSize)
     {
         var config = new System.Windows.Forms.ToolStripMenuItem("Config", Helpers.TrayMenuIcons.Config(iconSize));
-        var load = new System.Windows.Forms.ToolStripMenuItem("Load Config");
 
         config.DropDownItems.Add("Save Config...", null, (_, _) => SaveConfig());
-        config.DropDownItems.Add(load);
+        config.DropDownItems.Add("Load Config...", null, (_, _) => OpenConfigs());
         config.DropDownItems.Add("-");
         config.DropDownItems.Add("Open Configs Folder", null, (_, _) => OpenFolder(AppPaths.ConfigsFolder));
         config.DropDownItems.Add("-");
         config.DropDownItems.Add("Reset Config - Delete All Pads", null, (_, _) => RestoreAllIcons());
 
-        // The list is rebuilt each time, so newly saved configs show up.
-        load.DropDownItems.Add("(none)");
-        load.DropDownOpening += (_, _) =>
-        {
-            load.DropDownItems.Clear();
-            var saved = Configs.Store.List();
-
-            if (saved.Count == 0)
-                load.DropDownItems.Add(new System.Windows.Forms.ToolStripMenuItem("No saved configs") { Enabled = false });
-
-            foreach (var (name, savedAt) in saved)
-            {
-                var item = new System.Windows.Forms.ToolStripMenuItem(name) { ShortcutKeyDisplayString = savedAt.ToString("dd.MM HH:mm") };
-                item.Click += (_, _) => LoadConfig(name);
-                load.DropDownItems.Add(item);
-            }
-        };
-
-        // Sub-menus inherit the look of the main menu.
+        // The submenu gets the same look as the main menu.
         config.DropDown.Renderer = new Helpers.TrayMenuRenderer();
-        load.DropDown.Renderer = new Helpers.TrayMenuRenderer();
         return config;
+    }
+
+    private Views.ConfigsWindow? _configsWindow;
+
+    /// <summary>Shows the configs window, or brings the open one to the front.</summary>
+    internal void OpenConfigs()
+    {
+        if (_configsWindow is null)
+        {
+            _configsWindow = new Views.ConfigsWindow();
+            _configsWindow.Closed += (_, _) => _configsWindow = null;
+            _configsWindow.Show();
+        }
+
+        _configsWindow.Activate();
     }
 
     internal ConfigManager Configs { get; private set; } = null!;
@@ -306,12 +301,12 @@ public partial class App : Application
         }
     }
 
-    internal void LoadConfig(string name)
+    internal void LoadConfig(string name, bool confirm = true)
     {
         if (Host is null)
             return;
 
-        if (!Views.DigitalDialog.Confirm("Load config",
+        if (confirm && !Views.DigitalDialog.Confirm("Load config",
                 $"Load \"{name}\"? Your pads and settings are replaced by the saved ones; " +
                 "items are moved back into the pads they were saved in.", "LOAD"))
         {

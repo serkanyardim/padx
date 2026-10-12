@@ -9,10 +9,11 @@ namespace Paddock.App.Helpers;
 /// </summary>
 internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
 {
-    private static readonly Color Panel = Color.FromArgb(0x10, 0x15, 0x1C);
-    private static readonly Color Line = Color.FromArgb(0x2B, 0x35, 0x42);
-    private static readonly Color Text = Color.FromArgb(0xD9, 0xE1, 0xEA);
-    private static readonly Color Highlight = Color.FromArgb(0x10, 0x2C, 0x36);
+    private static readonly Color Panel = Color.FromArgb(0x23, 0x2C, 0x38);
+    private static readonly Color Line = Color.FromArgb(0x3A, 0x47, 0x57);
+    private static readonly Color Text = Color.FromArgb(0xE8, 0xEE, 0xF4);
+    private static readonly Color TextDim = Color.FromArgb(0x8E, 0x9B, 0xAA);
+    private static readonly Color Highlight = Color.FromArgb(0x1E, 0x4A, 0x5A);
 
     public TrayMenuRenderer()
         : base(new DigitalColors())
@@ -22,8 +23,15 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
-        e.TextColor = Text;
+        e.TextColor = e.Item.Enabled ? Text : TextDim;
         base.OnRenderItemText(e);
+    }
+
+    /// <summary>Submenu arrows default to black, which vanishes on the dark menu.</summary>
+    protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+    {
+        e.ArrowColor = e.Item?.Selected == true ? Text : TextDim;
+        base.OnRenderArrow(e);
     }
 
     protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
@@ -44,6 +52,17 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
         public override Color MenuItemSelected => Highlight;
         public override Color MenuItemSelectedGradientBegin => Highlight;
         public override Color MenuItemSelectedGradientEnd => Highlight;
+
+        // An item whose submenu is open is drawn "pressed" — without these it
+        // falls back to the system's pale blue, and white text disappears on it.
+        public override Color MenuItemPressedGradientBegin => Highlight;
+        public override Color MenuItemPressedGradientMiddle => Highlight;
+        public override Color MenuItemPressedGradientEnd => Highlight;
+        public override Color ButtonSelectedHighlight => Highlight;
+        public override Color ButtonPressedHighlight => Highlight;
+        public override Color CheckBackground => Highlight;
+        public override Color CheckSelectedBackground => Highlight;
+        public override Color CheckPressedBackground => Highlight;
         public override Color SeparatorDark => Line;
         public override Color SeparatorLight => Panel;
     }

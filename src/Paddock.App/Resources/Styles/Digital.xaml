@@ -10,15 +10,15 @@
     <!-- Tokens -->
     <Color x:Key="D.AccentColor">#00D1FF</Color>
     <SolidColorBrush x:Key="D.Bg" Color="#0B0E13" />
-    <SolidColorBrush x:Key="D.Panel" Color="#10151C" />
+    <SolidColorBrush x:Key="D.Panel" Color="#232C38" />
     <SolidColorBrush x:Key="D.Raised" Color="#161C25" />
     <SolidColorBrush x:Key="D.Line" Color="#1E2631" />
-    <SolidColorBrush x:Key="D.LineStrong" Color="#2B3542" />
+    <SolidColorBrush x:Key="D.LineStrong" Color="#3A4757" />
     <SolidColorBrush x:Key="D.Text" Color="#D9E1EA" />
     <SolidColorBrush x:Key="D.TextDim" Color="#7D8998" />
     <SolidColorBrush x:Key="D.TextFaint" Color="#4A5563" />
     <SolidColorBrush x:Key="D.Accent" Color="{StaticResource D.AccentColor}" />
-    <SolidColorBrush x:Key="D.AccentSoft" Color="#1A00D1FF" />
+    <SolidColorBrush x:Key="D.AccentSoft" Color="#2600D1FF" />
     <SolidColorBrush x:Key="D.Danger" Color="#FF5C5C" />
     <FontFamily x:Key="D.Mono">Cascadia Mono, Consolas</FontFamily>
     <FontFamily x:Key="D.Sans">Segoe UI Variable Text, Segoe UI</FontFamily>

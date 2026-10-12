@@ -67,6 +67,13 @@ public class ConfigStore
         File.WriteAllText(PathOf(config.Name), json);
     }
 
+    public void Delete(string name)
+    {
+        var path = PathOf(name);
+        if (File.Exists(path))
+            File.Delete(path);
+    }
+
     public SavedConfig? Load(string name)
     {
         try
