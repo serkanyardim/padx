@@ -41,6 +41,7 @@ internal sealed class AutoOrganizer
         [AutoCategory.Utilities] = "#2B2F36",
         [AutoCategory.Apps] = "#1B2433",
         [AutoCategory.Archives] = "#3A3A1A",
+        [AutoCategory.Installers] = "#2A2F3A",
         [AutoCategory.Other] = "#12161C",
     };
 
@@ -49,10 +50,24 @@ internal sealed class AutoOrganizer
     private PendingRun? _pending;
     private OrganizeBar? _bar;
 
-    /// <summary>One file that Auto Organize moved: where it came from, where it is now.</summary>
-    private sealed record Move(string? OriginPadId, string CurrentPath);
+    /// <summary>
+    /// One item Auto Organize handles. <see cref="Path"/> always holds where the
+    /// item is right now, so an undo can find it at any point of a run.
+    /// </summary>
+    private sealed class Item(string path, string? originPadId)
+    {
+        public string Path { get; set; } = path;
 
-    private sealed record PendingRun(List<PaddockModel> RemovedPads, List<Move> Moves, List<string> CreatedPadIds);
+        /// <summary>The pad it was in before the run; null when it was on the desktop.</summary>
+        public string? OriginPadId { get; } = originPadId;
+
+        public bool WasManaged { get; init; } = true;
+    }
+
+    /// <summary>Everything decided before a single file moves.</summary>
+    private sealed record Plan(List<(AutoCategory Category, List<Item> Items, PlacedRect Rect, string? Color)> Pads);
+
+    private sealed record PendingRun(List<PaddockModel> RemovedPads, List<Item> Items, List<string> CreatedPadIds);
 
     public AutoOrganizer(App app)
     {
@@ -99,11 +114,6 @@ internal sealed class AutoOrganizer
         {
             await OrganizeAsync(unlocked, desktopItems);
         }
-        catch (Exception ex)
-        {
-            Log.Error("Auto organize failed.", ex);
-            DigitalDialog.Inform("Auto organize failed", "Something went wrong; see paddock.log. Your files are safe on the desktop or in pads.");
-        }
         finally
         {
             _app.ShellHookService.SetDesktopIconsVisible(true);
@@ -113,43 +123,132 @@ internal sealed class AutoOrganizer
 
     private async Task OrganizeAsync(List<PaddockModel> unlocked, IReadOnlyList<string> desktopItems)
     {
-        var settings = _app.Settings.Settings;
-        var auto = settings.AutoMode;
-        var animate = auto.Animate;
+        var animate = _app.Settings.Settings.AutoMode.Animate;
+
+        var items = desktopItems.Select(p => new Item(p, null)).ToList();
+        foreach (var pad in unlocked)
+            items.AddRange(pad.Icons.Select(i => new Item(i.DesktopPath, pad.Id) { WasManaged = i.Managed }));
+
+        // Decide everything first. If anything here fails, nothing has moved yet.
+        Plan plan;
+        try
+        {
+            plan = MakePlan(items, unlocked);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Auto organize could not plan the layout; nothing was changed.", ex);
+            DigitalDialog.Inform("Auto organize failed", "Could not work out a layout, so nothing was changed. Details are in paddock.log.");
+            return;
+        }
 
         if (Host.PaddocksHidden)
             Host.SetPaddocksVisible(true);
 
         var snapshot = unlocked.Select(Clone).ToList();
         var oldWindows = unlocked.Select(p => Host.FindWindow(p.Id)).OfType<PaddockWindow>().ToList();
+        var createdIds = new List<string>();
 
-        // 1. Clear the stage: desktop icons and the pads being rebuilt disappear.
+        // Clear the stage: desktop icons and the pads being rebuilt disappear.
         _app.ShellHookService.SetDesktopIconsVisible(false);
         if (animate)
             await FadeAsync(oldWindows, 0, FadeOut);
 
-        // 2. Collect every item, remembering where it came from.
-        var items = new List<(string Path, string? Origin)>();
-        items.AddRange(desktopItems.Select(p => (p, (string?)null)));
+        try
+        {
+            Execute(plan, unlocked, createdIds);
+        }
+        catch (Exception ex)
+        {
+            // Half-done: put everything back as it was.
+            Log.Error("Auto organize failed while moving items; rolling back.", ex);
+            await UndoAsync(new PendingRun(snapshot, items, createdIds), animate);
+            DigitalDialog.Inform("Auto organize failed",
+                "Something went wrong while moving items, so everything was put back the way it was. Details are in paddock.log.");
+            return;
+        }
 
-        var moves = new List<Move>();
-        var created = new List<PaddockWindow>();
+        _app.DesktopIconService.NotifyShellOfDesktopChange();
+
+        var created = createdIds.Select(Host.FindWindow).OfType<PaddockWindow>().ToList();
+        await RevealAsync(created, animate);
+        _app.ShellHookService.SetDesktopIconsVisible(true);
+
+        var total = created.Sum(w => w.ViewModel.Icons.Count);
+        Log.Info($"Auto organize: {total} item(s) into {created.Count} pad(s); {snapshot.Count} pad(s) rebuilt.");
+
+        _pending = new PendingRun(snapshot, items, createdIds);
+        ShowBar($"{created.Count} pads · {total} icons");
+    }
+
+    /// <summary>Categories, pad sizes, positions and colours — no side effects.</summary>
+    private Plan MakePlan(List<Item> items, List<PaddockModel> unlocked)
+    {
+        var settings = _app.Settings.Settings;
+        var auto = settings.AutoMode;
+
+        // Categorise; tiny categories fold into "Other".
+        var groups = items
+            .GroupBy(i => IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var small in groups.Where(g => g.Key != AutoCategory.Other && g.Value.Count < auto.MinItemsPerPad).ToList())
+        {
+            if (!groups.TryGetValue(AutoCategory.Other, out var other))
+                groups[AutoCategory.Other] = other = new();
+
+            other.AddRange(small.Value);
+            groups.Remove(small.Key);
+        }
+
+        var ordered = groups.OrderBy(g => g.Key).ToList();
+
+        // Size each pad to its icons and pack them around the pads that stay.
+        var metrics = CurrentMetrics(settings.Appearance);
+        var sizes = ordered
+            .Select(g => AutoLayoutPlanner.Measure(g.Value.Count, auto.MaxIconsPerRow, metrics))
+            .Select(m => (m.Width, m.Height))
+            .ToList();
+
+        var rebuilt = unlocked.Select(p => p.Id).ToHashSet();
+        var obstacles = Manager.GetPaddocks()
+            .Where(p => !rebuilt.Contains(p.Id))
+            .Select(p => new PlacedRect(p.X, p.Y, p.Width, p.IsRolledUp ? ViewModels.PaddockViewModel.TitleBarHeight : p.Height))
+            .ToList();
+
+        var workArea = SystemParameters.WorkArea;
+        var rects = AutoLayoutPlanner.Place(
+            sizes,
+            new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height),
+            obstacles,
+            Math.Max(8, settings.IntelligentSpacing),
+            auto.StartCorner);
+
+        var colors = PickColors(ordered.Select(g => g.Key).ToList(), auto.ColorMode);
+
+        return new Plan(ordered.Select((g, i) => (g.Key, g.Value, rects[i], colors[i])).ToList());
+    }
+
+    /// <summary>Takes the old pads apart and builds the planned ones, keeping every item's path current.</summary>
+    private void Execute(Plan plan, List<PaddockModel> unlocked, List<string> createdIds)
+    {
+        var auto = _app.Settings.Settings.AutoMode;
+        var byOrigin = plan.Pads.SelectMany(p => p.Items).Where(i => i.OriginPadId is not null).ToList();
 
         using (Manager.DeferSave())
         {
             foreach (var pad in unlocked)
             {
-                foreach (var icon in pad.Icons.ToList())
+                foreach (var item in byOrigin.Where(i => i.OriginPadId == pad.Id))
                 {
-                    if (icon.Managed)
+                    if (item.WasManaged)
                     {
-                        if (Manager.EjectIcon(pad.Id, icon.DesktopPath) is { } onDesktop)
-                            items.Add((onDesktop, pad.Id));
+                        if (Manager.EjectIcon(pad.Id, item.Path) is { } onDesktop)
+                            item.Path = onDesktop;
                     }
                     else
                     {
-                        Manager.RemoveIconFromPaddock(pad.Id, icon.DesktopPath);
-                        items.Add((icon.DesktopPath, pad.Id));
+                        Manager.RemoveIconFromPaddock(pad.Id, item.Path);
                     }
                 }
 
@@ -157,75 +256,23 @@ internal sealed class AutoOrganizer
                     Host.RemovePaddock(window);
             }
 
-            // 3. Categorise; tiny categories fold into "Other".
-            var groups = items
-                .GroupBy(i => IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            foreach (var small in groups.Where(g => g.Key != AutoCategory.Other && g.Value.Count < auto.MinItemsPerPad).ToList())
+            foreach (var (category, items, rect, color) in plan.Pads)
             {
-                if (!groups.TryGetValue(AutoCategory.Other, out var other))
-                    groups[AutoCategory.Other] = other = new();
-
-                other.AddRange(small.Value);
-                groups.Remove(small.Key);
-            }
-
-            var ordered = groups.OrderBy(g => g.Key).ToList();
-
-            // 4. Size each pad to its icons and pack them around the locked pads.
-            var metrics = CurrentMetrics(settings.Appearance);
-            var sizes = ordered
-                .Select(g => AutoLayoutPlanner.Measure(g.Value.Count, auto.MaxIconsPerRow, metrics))
-                .Select(m => (m.Width, m.Height))
-                .ToList();
-
-            var workArea = SystemParameters.WorkArea;
-            var obstacles = Manager.GetPaddocks()
-                .Select(p => new PlacedRect(p.X, p.Y, p.Width, p.IsRolledUp ? ViewModels.PaddockViewModel.TitleBarHeight : p.Height))
-                .ToList();
-
-            var rects = AutoLayoutPlanner.Place(
-                sizes,
-                new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height),
-                obstacles,
-                Math.Max(8, settings.IntelligentSpacing),
-                auto.StartCorner);
-
-            var colors = PickColors(ordered.Select(g => g.Key).ToList(), auto.ColorMode);
-
-            // 5. Build the pads and move the items in.
-            for (var i = 0; i < ordered.Count; i++)
-            {
-                var (category, groupItems) = (ordered[i].Key, ordered[i].Value);
-                var rect = rects[i];
-
                 var model = Manager.CreatePaddock(IconCategorizer.Title(category), rect.X, rect.Y, rect.Width, rect.Height);
+                createdIds.Add(model.Id);
                 model.TitleVisibility = TitleVisibility.Always;
                 model.Locked = auto.LockCreatedPads;
-                model.Style.Color = colors[i];
+                model.Style.Color = color;
 
-                foreach (var (path, origin) in groupItems)
+                foreach (var item in items)
                 {
-                    if (Manager.AddIconToPaddock(model.Id, path) is { } entry)
-                        moves.Add(new Move(origin, entry.DesktopPath));
+                    if (Manager.AddIconToPaddock(model.Id, item.Path) is { } entry)
+                        item.Path = entry.DesktopPath;
                 }
 
-                created.Add(Host.AddWindow(model, show: false));
+                Host.AddWindow(model, show: false);
             }
         }
-
-        _app.DesktopIconService.NotifyShellOfDesktopChange();
-
-        // 6. Reveal.
-        await RevealAsync(created, animate);
-        _app.ShellHookService.SetDesktopIconsVisible(true);
-
-        var total = created.Sum(w => w.ViewModel.Icons.Count);
-        Log.Info($"Auto organize: {total} item(s) into {created.Count} pad(s); {snapshot.Count} pad(s) rebuilt.");
-
-        _pending = new PendingRun(snapshot, moves, created.Select(w => w.ViewModel.Id).ToList());
-        ShowBar($"{created.Count} pads · {total} icons");
     }
 
     /// <summary>Keeps the new layout.</summary>
@@ -248,7 +295,24 @@ internal sealed class AutoOrganizer
 
         try
         {
-            var animate = _app.Settings.Settings.AutoMode.Animate;
+            await UndoAsync(run, _app.Settings.Settings.AutoMode.Animate);
+        }
+        finally
+        {
+            _app.ShellHookService.SetDesktopIconsVisible(true);
+            _busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Returns every item to where it started and rebuilds the removed pads.
+    /// Works from any point of a run — finished, or failed halfway — because
+    /// each item's current path is always up to date.
+    /// </summary>
+    private async Task UndoAsync(PendingRun run, bool animate)
+    {
+        try
+        {
             var createdWindows = run.CreatedPadIds.Select(Host.FindWindow).OfType<PaddockWindow>().ToList();
 
             _app.ShellHookService.SetDesktopIconsVisible(false);
@@ -259,22 +323,32 @@ internal sealed class AutoOrganizer
 
             using (Manager.DeferSave())
             {
-                var restored = run.RemovedPads.Select(Manager.RestorePaddock).ToList();
+                var restored = run.RemovedPads
+                    .Where(p => Manager.GetPaddock(p.Id) is null)
+                    .Select(Manager.RestorePaddock)
+                    .ToList();
 
-                foreach (var move in run.Moves)
+                foreach (var item in run.Items)
                 {
                     var holder = run.CreatedPadIds
                         .Select(Manager.GetPaddock)
-                        .FirstOrDefault(p => p?.Icons.Any(i => PathEquals(i.DesktopPath, move.CurrentPath)) == true);
+                        .FirstOrDefault(p => p?.Icons.Any(i => PathEquals(i.DesktopPath, item.Path)) == true);
 
-                    // Moved again since (or deleted): leave it where the user put it.
-                    if (holder is null)
-                        continue;
-
-                    if (move.OriginPadId is null)
-                        Manager.EjectIcon(holder.Id, move.CurrentPath);
-                    else
-                        Manager.MoveIconBetweenPaddocks(holder.Id, move.OriginPadId, move.CurrentPath);
+                    if (item.OriginPadId is null)
+                    {
+                        if (holder is not null)
+                            Manager.EjectIcon(holder.Id, item.Path);
+                    }
+                    else if (holder is not null)
+                    {
+                        Manager.MoveIconBetweenPaddocks(holder.Id, item.OriginPadId, item.Path);
+                    }
+                    else if (Manager.GetPaddock(item.OriginPadId) is { } origin
+                             && !origin.Icons.Any(i => PathEquals(i.DesktopPath, item.Path)))
+                    {
+                        // Taken out of its pad but not placed yet (a run that failed halfway).
+                        Manager.AddIconToPaddock(item.OriginPadId, item.Path);
+                    }
                 }
 
                 // Anything left (added after the run) goes safely to the desktop with its pad.
@@ -285,18 +359,17 @@ internal sealed class AutoOrganizer
                     restoredWindows.Add(Host.AddWindow(model, show: false));
             }
 
+            // Pads that were faded out but never removed come back too.
+            foreach (var window in Host.Windows.Where(w => w.Opacity < 1 && !restoredWindows.Contains(w)))
+                window.Opacity = 1;
+
             _app.DesktopIconService.NotifyShellOfDesktopChange();
             await RevealAsync(restoredWindows, animate);
-            Log.Info($"Auto organize reverted: {run.Moves.Count} item(s), {restoredWindows.Count} pad(s) restored.");
+            Log.Info($"Auto organize undone: {run.Items.Count} item(s), {restoredWindows.Count} pad(s) restored.");
         }
         catch (Exception ex)
         {
-            Log.Error("Reverting auto organize failed.", ex);
-        }
-        finally
-        {
-            _app.ShellHookService.SetDesktopIconsVisible(true);
-            _busy = false;
+            Log.Error("Undoing auto organize failed; items are on the desktop or in pads.", ex);
         }
     }
 
@@ -317,7 +390,7 @@ internal sealed class AutoOrganizer
 
     private static List<string?> PickColors(List<AutoCategory> categories, AutoColorMode mode) => mode switch
     {
-        AutoColorMode.ByCategory => categories.Select(c => (string?)CategoryColors[c]).ToList(),
+        AutoColorMode.ByCategory => categories.Select(c => CategoryColors.GetValueOrDefault(c, CategoryColors[AutoCategory.Other])).Select(c => (string?)c).ToList(),
         AutoColorMode.Random => RandomColors(categories.Count),
         _ => categories.Select(_ => (string?)null).ToList(),
     };
