@@ -132,6 +132,8 @@ public class PaddockViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(ContentVisibility));
             OnPropertyChanged(nameof(TitleBarCornerRadius));
+            OnPropertyChanged(nameof(HoverGripVisibility));
+            OnPropertyChanged(nameof(AlwaysGripVisibility));
             OnPropertyChanged(nameof(DisplayHeight));
             OnPropertyChanged(nameof(EmptyHintVisibility));
             _manager.SaveLayout();
@@ -201,6 +203,29 @@ public class PaddockViewModel : INotifyPropertyChanged
     public Brush SheenBrush => IsGlass
         ? PadVisuals.GlassSheen(EffectiveColor, Appearance.GlassShine)
         : Brushes.Transparent;
+
+    // --- Resize grip ---
+
+    public Visibility HoverGripVisibility => GripVisibility(GripMode.Hover);
+
+    public Visibility AlwaysGripVisibility => GripVisibility(GripMode.Always);
+
+    private Visibility GripVisibility(GripMode mode)
+        => Appearance.ResizeGrip == mode && !IsRolledUp ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// Distance of the grip from the corner. A rounded corner pulls it inwards
+    /// by about 0.3 × radius — where the curve crosses the corner's diagonal —
+    /// so the strokes always sit inside the curve, not over it.
+    /// </summary>
+    public Thickness GripMargin
+    {
+        get
+        {
+            var inset = 4 + BorderThickness.Right + 0.3 * Appearance.CornerRadius;
+            return new Thickness(0, 0, inset, inset);
+        }
+    }
 
     /// <summary>Radius of anything drawn just inside the edge.</summary>
     public CornerRadius InnerCornerRadius => new(Math.Max(0, Appearance.CornerRadius - BorderThickness.Left));

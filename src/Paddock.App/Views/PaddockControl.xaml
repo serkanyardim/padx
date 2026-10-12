@@ -9,6 +9,23 @@
              x:Name="Root">
 
     <UserControl.Resources>
+        <!-- Two short diagonal strokes in the bottom-right corner; inset follows the corner radius -->
+        <Style x:Key="ResizeGrip" TargetType="Path">
+            <Setter Property="Data" Value="M 9,1 L 1,9 M 9,5 L 5,9" />
+            <Setter Property="Width" Value="10" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="Stroke" Value="{Binding IconTextBrush}" />
+            <Setter Property="StrokeThickness" Value="1.1" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="Opacity" Value="0.45" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="Margin" Value="{Binding GripMargin}" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="SnapsToDevicePixels" Value="False" />
+        </Style>
+
         <!-- Fade-in animation for hover chrome -->
         <Storyboard x:Key="ShowChrome">
             <DoubleAnimation Storyboard.TargetName="HoverChrome"
@@ -229,17 +246,12 @@
                                Margin="0,-2,0,0" />
                 </Border>
 
-                <Canvas Width="12" Height="12"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Bottom"
-                        Margin="0,0,6,6"
-                        IsHitTestVisible="False"
-                        Visibility="{Binding ContentVisibility}">
-                    <Ellipse Width="2.5" Height="2.5" Fill="{DynamicResource PaddockGripDot}" Canvas.Left="9" Canvas.Top="9" />
-                    <Ellipse Width="2.5" Height="2.5" Fill="{DynamicResource PaddockGripDot}" Canvas.Left="4.5" Canvas.Top="9" />
-                    <Ellipse Width="2.5" Height="2.5" Fill="{DynamicResource PaddockGripDot}" Canvas.Left="9" Canvas.Top="4.5" />
-                </Canvas>
+                <!-- Resize grip, hover mode -->
+                <Path Style="{StaticResource ResizeGrip}" Visibility="{Binding HoverGripVisibility}" />
             </Grid>
+
+            <!-- Resize grip, always-visible mode -->
+            <Path Style="{StaticResource ResizeGrip}" Visibility="{Binding AlwaysGripVisibility}" />
 
             <!-- Drop feedback: outlines the paddock while a drag is over it -->
             <Border x:Name="DropHighlight"

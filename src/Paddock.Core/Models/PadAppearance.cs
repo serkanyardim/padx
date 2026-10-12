@@ -38,6 +38,11 @@ public class PadAppearance
     public string TitleFont { get; set; } = "Cascadia Mono";
     public bool TitleUppercase { get; set; } = true;
 
+    // --- Resize grip ---
+
+    /// <summary>The two small strokes in the bottom-right corner that hint "drag to resize".</summary>
+    public GripMode ResizeGrip { get; set; } = GripMode.Hover;
+
     // --- Icons ---
     public double IconSize { get; set; } = 40;
     public bool ShowIconLabels { get; set; } = true;
@@ -54,6 +59,13 @@ public class PadAppearance
         TitleFontSize = Math.Clamp(TitleFontSize, 8, 20);
         IconSize = Math.Clamp(IconSize, 24, 64);
     }
+}
+
+public enum GripMode
+{
+    Off,
+    Hover,
+    Always
 }
 
 public enum GlassBlur

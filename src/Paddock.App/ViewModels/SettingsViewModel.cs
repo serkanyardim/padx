@@ -27,7 +27,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         nameof(PreviewTitle), nameof(PreviewLabelBrush), nameof(PreviewLabelVisibility),
         nameof(PreviewIconSize), nameof(PreviewCellWidth), nameof(PreviewSheen),
         nameof(PreviewSheenVisibility), nameof(PreviewBlurVisibility), nameof(PreviewBlurRadius),
-        nameof(IsGlass), nameof(GlassOptionsOpacity),
+        nameof(IsGlass), nameof(GlassOptionsOpacity), nameof(PreviewGripVisibility), nameof(PreviewGripMargin),
     ];
 
     private readonly SettingsService _settings;
@@ -233,6 +233,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { A.BorderThickness = Math.Clamp(Math.Round(value), 0, PadAppearance.MaxBorderThickness); AppearanceChanged(); }
     }
 
+    public GripMode ResizeGrip
+    {
+        get => A.ResizeGrip;
+        set { A.ResizeGrip = value; AppearanceChanged(); }
+    }
+
     // ===== Appearance: title bar =====
 
     public string TitleBarColor
@@ -339,6 +345,19 @@ public class SettingsViewModel : INotifyPropertyChanged
     public Visibility PreviewLabelVisibility => A.ShowIconLabels ? Visibility.Visible : Visibility.Collapsed;
     public double PreviewIconSize => A.IconSize;
     public double PreviewCellWidth => A.IconSize + 32;
+
+    /// <summary>The preview is always "hovered", so it shows the grip unless it is off.</summary>
+    public Visibility PreviewGripVisibility => A.ResizeGrip == GripMode.Off ? Visibility.Collapsed : Visibility.Visible;
+
+    public Thickness PreviewGripMargin
+    {
+        get
+        {
+            var edge = IsGlass ? Math.Max(1, A.BorderThickness) : A.BorderThickness;
+            var inset = 4 + edge + 0.3 * A.CornerRadius;
+            return new Thickness(0, 0, inset, inset);
+        }
+    }
 
     // ===== Plumbing =====
 

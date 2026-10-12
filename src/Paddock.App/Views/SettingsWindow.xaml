@@ -311,128 +311,6 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- ================= AUTO MODE ================= -->
-                <TabItem Header="04  AUTO MODE">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
-                        <StackPanel>
-                            <TextBlock Text="// AUTO ORGANIZE" Style="{StaticResource D.Section}" />
-                            <TextBlock Style="{StaticResource D.Hint}" Margin="0,0,0,10"
-                                       Text="sorts the desktop and every unlocked pad into category pads: folders, documents, media, browsers, dev tools, design &amp; cad... shortcuts are judged by the program they launch. locked pads are never touched. a bar in the corner lets you accept or revert." />
-
-                            <Button Style="{StaticResource D.Button}" Content="RUN AUTO ORGANIZE" HorizontalAlignment="Left"
-                                    Foreground="{StaticResource D.Accent}" Margin="0,0,0,6" Click="RunAutoOrganize_Click" />
-
-                            <TextBlock Text="// LAYOUT" Style="{StaticResource D.Section}" />
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Slider Style="{StaticResource D.Slider}" Minimum="2" Maximum="12"
-                                                TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding MaxIconsPerRow}" />
-                                        <TextBlock Style="{StaticResource D.Value}" Text="{Binding MaxIconsPerRow}" />
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="Icons per row" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="most icons side by side; pads grow downwards after that" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Slider Style="{StaticResource D.Slider}" Minimum="1" Maximum="5"
-                                                TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding MinItemsPerPad}" />
-                                        <TextBlock Style="{StaticResource D.Value}" Text="{Binding MinItemsPerPad}" />
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="Smallest pad" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="categories with fewer icons go into &quot;other&quot;" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <RadioButton Style="{StaticResource D.Segment}" Content="LEFT"
-                                                     IsChecked="{Binding AutoStartCorner, Converter={StaticResource Eq}, ConverterParameter=TopLeft}" />
-                                        <RadioButton Style="{StaticResource D.Segment}" Content="RIGHT"
-                                                     IsChecked="{Binding AutoStartCorner, Converter={StaticResource Eq}, ConverterParameter=TopRight}" />
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="Start from" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="pads fill down, then across, from this side" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <TextBlock Text="// PADS" Style="{StaticResource D.Section}" />
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <RadioButton Style="{StaticResource D.Segment}" Content="DEFAULT"
-                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Default}" />
-                                        <RadioButton Style="{StaticResource D.Segment}" Content="CATEGORY"
-                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=ByCategory}" />
-                                        <RadioButton Style="{StaticResource D.Segment}" Content="RANDOM"
-                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Random}" />
-                                    </StackPanel>
-                                    <StackPanel>
-                                        <TextBlock Text="Pad colors" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="default follows appearance (glass too)" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
-                                              VerticalAlignment="Center" IsChecked="{Binding LockCreatedPads}" />
-                                    <StackPanel>
-                                        <TextBlock Text="Lock created pads" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="the next run then only sorts new desktop icons" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
-                                              VerticalAlignment="Center" IsChecked="{Binding IncludeSystemIcons}" />
-                                    <StackPanel>
-                                        <TextBlock Text="Include system icons" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="recycle bin, your user folder, this pc...: a shortcut goes in a pad, the desktop icon is hidden" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
-                                              VerticalAlignment="Center" IsChecked="{Binding IncludeAllUsersDesktop}" />
-                                    <StackPanel>
-                                        <TextBlock Text="Include all-users shortcuts" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="programs installed for everyone; asks for admin permission, and removes them for other accounts on this pc too" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource D.Row}">
-                                <DockPanel>
-                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
-                                              VerticalAlignment="Center" IsChecked="{Binding AnimateAutoMode}" />
-                                    <StackPanel>
-                                        <TextBlock Text="Animate" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="fade out, then reveal the new pads one by one" Style="{StaticResource D.Hint}" />
-                                    </StackPanel>
-                                </DockPanel>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
                 <!-- ================= APPEARANCE ================= -->
                 <TabItem Header="03  APPEARANCE">
                     <DockPanel>
@@ -497,6 +375,13 @@
                                                            Visibility="{Binding PreviewLabelVisibility}" />
                                             </StackPanel>
                                         </StackPanel>
+
+                                        <Path Data="M 9,1 L 1,9 M 9,5 L 5,9" Width="10" Height="10"
+                                              Stroke="{Binding PreviewLabelBrush}" StrokeThickness="1.1"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0.45"
+                                              HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                              Margin="{Binding PreviewGripMargin}"
+                                              Visibility="{Binding PreviewGripVisibility}" />
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -540,6 +425,23 @@
                                             <TextBlock Style="{StaticResource D.Value}" Text="{Binding CornerRadius, StringFormat={}{0:0}px}" />
                                         </StackPanel>
                                         <TextBlock Text="Corner radius" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="OFF"
+                                                         IsChecked="{Binding ResizeGrip, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="HOVER"
+                                                         IsChecked="{Binding ResizeGrip, Converter={StaticResource Eq}, ConverterParameter=Hover}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="ALWAYS"
+                                                         IsChecked="{Binding ResizeGrip, Converter={StaticResource Eq}, ConverterParameter=Always}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Resize grip" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="two fine strokes in the corner; follows the radius" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
                                     </DockPanel>
                                 </Border>
 
@@ -731,6 +633,128 @@
                         </ScrollViewer>
                     </DockPanel>
                 </TabItem>
+                <!-- ================= AUTO MODE ================= -->
+                <TabItem Header="04  AUTO MODE">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
+                        <StackPanel>
+                            <TextBlock Text="// AUTO ORGANIZE" Style="{StaticResource D.Section}" />
+                            <TextBlock Style="{StaticResource D.Hint}" Margin="0,0,0,10"
+                                       Text="sorts the desktop and every unlocked pad into category pads: folders, documents, media, browsers, dev tools, design &amp; cad... shortcuts are judged by the program they launch. locked pads are never touched. a bar in the corner lets you accept or revert." />
+
+                            <Button Style="{StaticResource D.Button}" Content="RUN AUTO ORGANIZE" HorizontalAlignment="Left"
+                                    Foreground="{StaticResource D.Accent}" Margin="0,0,0,6" Click="RunAutoOrganize_Click" />
+
+                            <TextBlock Text="// LAYOUT" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Slider Style="{StaticResource D.Slider}" Minimum="2" Maximum="12"
+                                                TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding MaxIconsPerRow}" />
+                                        <TextBlock Style="{StaticResource D.Value}" Text="{Binding MaxIconsPerRow}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Icons per row" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="most icons side by side; pads grow downwards after that" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Slider Style="{StaticResource D.Slider}" Minimum="1" Maximum="5"
+                                                TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding MinItemsPerPad}" />
+                                        <TextBlock Style="{StaticResource D.Value}" Text="{Binding MinItemsPerPad}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Smallest pad" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="categories with fewer icons go into &quot;other&quot;" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="LEFT"
+                                                     IsChecked="{Binding AutoStartCorner, Converter={StaticResource Eq}, ConverterParameter=TopLeft}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="RIGHT"
+                                                     IsChecked="{Binding AutoStartCorner, Converter={StaticResource Eq}, ConverterParameter=TopRight}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Start from" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="pads fill down, then across, from this side" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock Text="// PADS" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="DEFAULT"
+                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Default}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="CATEGORY"
+                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=ByCategory}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="RANDOM"
+                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Random}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Pad colors" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="default follows appearance (glass too)" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding LockCreatedPads}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Lock created pads" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="the next run then only sorts new desktop icons" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding IncludeSystemIcons}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Include system icons" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="recycle bin, your user folder, this pc...: a shortcut goes in a pad, the desktop icon is hidden" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding IncludeAllUsersDesktop}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Include all-users shortcuts" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="programs installed for everyone; asks for admin permission, and removes them for other accounts on this pc too" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding AnimateAutoMode}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Animate" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="fade out, then reveal the new pads one by one" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
             </TabControl>
         </DockPanel>
     </Border>
