@@ -68,6 +68,19 @@ internal sealed class PaddockHost : IDisposable
         UpdateZOrderTimer();
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+
+        // Win+D lifts the desktop over every app; follow it straight away.
+        // Re-pin twice: Explorer finishes moving the desktop a moment later.
+        _app.ShellHookService.WatchForeground(() =>
+        {
+            PinAllToDesktop();
+            _app.Dispatcher.InvokeAsync(async () =>
+            {
+                await Task.Delay(150);
+                PinAllToDesktop();
+            });
+        });
+
         _app.DesktopIconService.WatchStore(OnStoreChanged);
 
         LogStartupState();
@@ -312,6 +325,7 @@ internal sealed class PaddockHost : IDisposable
         _zOrderTimer.Stop();
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        _app.ShellHookService.StopWatchingForeground();
 
         foreach (var window in _windows.ToList())
         {

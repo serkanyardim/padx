@@ -141,9 +141,57 @@ public class ShellHookService
     private IntPtr GetZOrderAnchor(IntPtr ownWindowHandle)
     {
         var desktop = GetDesktopWindow();
-        return desktop != IntPtr.Zero && desktop != ownWindowHandle
-            ? desktop
-            : NativeMethods.HWND_BOTTOM;
+        if (desktop == IntPtr.Zero || desktop == ownWindowHandle)
+            return NativeMethods.HWND_BOTTOM;
+
+        // Sit directly above the desktop window, wherever it is. Normally that
+        // is the bottom of the z-order; after Win+D ("show desktop") Explorer
+        // lifts the desktop above every app, and the pads must come with it
+        // or they end up hidden behind it. So: insert after the first window
+        // above the desktop that is not one of ours.
+        var above = NativeMethods.GetWindow(desktop, NativeMethods.GW_HWNDPREV);
+        while (above != IntPtr.Zero && IsOwnWindow(above))
+            above = NativeMethods.GetWindow(above, NativeMethods.GW_HWNDPREV);
+
+        return above == IntPtr.Zero ? NativeMethods.HWND_TOP : above;
+    }
+
+    private static readonly uint OwnProcessId = (uint)Environment.ProcessId;
+
+    private static bool IsOwnWindow(IntPtr window)
+    {
+        NativeMethods.GetWindowThreadProcessId(window, out var processId);
+        return processId == OwnProcessId;
+    }
+
+    // -- Foreground changes --
+
+    private NativeMethods.WinEventProc? _foregroundProc;
+    private IntPtr _foregroundHook;
+
+    /// <summary>
+    /// Calls <paramref name="onChanged"/> (on this thread) whenever another
+    /// window comes to the foreground — including Win+D, which lifts the
+    /// desktop. Lets pads re-pin at once instead of on the next timer tick.
+    /// </summary>
+    public void WatchForeground(Action onChanged)
+    {
+        if (_foregroundHook != IntPtr.Zero)
+            return;
+
+        _foregroundProc = (_, _, _, _, _, _, _) => onChanged();
+        _foregroundHook = NativeMethods.SetWinEventHook(
+            NativeMethods.EVENT_SYSTEM_FOREGROUND, NativeMethods.EVENT_SYSTEM_FOREGROUND,
+            IntPtr.Zero, _foregroundProc, 0, 0, NativeMethods.WINEVENT_OUTOFCONTEXT);
+    }
+
+    public void StopWatchingForeground()
+    {
+        if (_foregroundHook != IntPtr.Zero)
+            NativeMethods.UnhookWinEvent(_foregroundHook);
+
+        _foregroundHook = IntPtr.Zero;
+        _foregroundProc = null;
     }
 
     /// <summary>
