@@ -400,6 +400,17 @@
                             <Border Style="{StaticResource D.Row}">
                                 <DockPanel>
                                     <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding IncludeSystemIcons}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Include system icons" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="recycle bin, your user folder, this pc...: a shortcut goes in a pad, the desktop icon is hidden" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
                                               VerticalAlignment="Center" IsChecked="{Binding IncludeAllUsersDesktop}" />
                                     <StackPanel>
                                         <TextBlock Text="Include all-users shortcuts" Style="{StaticResource D.Label}" />

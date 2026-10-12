@@ -131,6 +131,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { Auto.IncludeAllUsersDesktop = value; Changed(); }
     }
 
+    public bool IncludeSystemIcons
+    {
+        get => Auto.IncludeSystemIcons;
+        set { Auto.IncludeSystemIcons = value; Changed(); }
+    }
+
     public bool AnimateAutoMode
     {
         get => Auto.Animate;

@@ -65,7 +65,17 @@ internal sealed class AutoOrganizer
 
         /// <summary>Came from the all-users desktop: moving it back needs elevation.</summary>
         public bool FromPublic { get; init; }
+
+        /// <summary>A shortcut we generated for a built-in desktop icon (Recycle Bin, …).</summary>
+        public SystemDesktopIcons.Definition? SystemIcon { get; init; }
+
+        /// <summary>Set once the built-in icon has been hidden, so undo can restore the setting.</summary>
+        public SystemDesktopIcons.Taken? HiddenIcon { get; set; }
+
+        public AutoCategory? CategoryOverride { get; init; }
     }
+
+    private const string SystemShortcutFolder = "_system";
 
     /// <summary>Everything decided before a single file moves.</summary>
     private sealed record Plan(List<(AutoCategory Category, List<Item> Items, PlacedRect Rect, string? Color)> Pads);
@@ -144,6 +154,9 @@ internal sealed class AutoOrganizer
         if (items.Any(i => i.FromPublic))
             await StagePublicItemsAsync(items);
 
+        if (_app.Settings.Settings.AutoMode.IncludeSystemIcons)
+            items.AddRange(CreateSystemIconShortcuts());
+
         // Decide everything first. If anything here fails, nothing has moved yet.
         Plan plan;
         try
@@ -153,6 +166,7 @@ internal sealed class AutoOrganizer
         catch (Exception ex)
         {
             Log.Error("Auto organize could not plan the layout; nothing was changed.", ex);
+            DeleteSystemShortcuts();
             DigitalDialog.Inform("Auto organize failed", "Could not work out a layout, so nothing was changed. Details are in paddock.log.");
             return;
         }
@@ -260,6 +274,56 @@ internal sealed class AutoOrganizer
     {
         foreach (var item in _app.IconStore.ListPaddockItems(DesktopIconService.PublicStagingFolder))
             _app.IconStore.MoveToDesktop(item);
+
+        DeleteSystemShortcuts();
+    }
+
+    /// <summary>
+    /// Shortcuts for the built-in icons showing on the desktop, written to a
+    /// staging folder in the store. Hiding the real icons waits for
+    /// <see cref="Execute"/>, so a failed plan changes nothing.
+    /// </summary>
+    private List<Item> CreateSystemIconShortcuts()
+    {
+        var folder = _app.IconStore.EnsurePaddockFolder(SystemShortcutFolder);
+        var items = new List<Item>();
+
+        foreach (var icon in SystemDesktopIcons.Visible())
+        {
+            var name = string.Concat(SystemDesktopIcons.DisplayName(icon).Split(System.IO.Path.GetInvalidFileNameChars()));
+            var link = System.IO.Path.Combine(folder, name + ".lnk");
+
+            if (SystemDesktopIcons.CreateShortcut(icon, link))
+            {
+                items.Add(new Item(link, null)
+                {
+                    SystemIcon = icon,
+                    CategoryOverride = icon.IsFolderLike ? AutoCategory.Folders : AutoCategory.Utilities,
+                });
+            }
+        }
+
+        return items;
+    }
+
+    /// <summary>Removes generated shortcuts that never made it into a pad.</summary>
+    private void DeleteSystemShortcuts()
+    {
+        foreach (var leftover in _app.IconStore.ListPaddockItems(SystemShortcutFolder))
+            TryDelete(leftover);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (System.IO.File.Exists(path))
+                System.IO.File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not delete '{path}': {ex.Message}");
+        }
     }
 
     /// <summary>Categories, pad sizes, positions and colours — no side effects.</summary>
@@ -270,7 +334,7 @@ internal sealed class AutoOrganizer
 
         // Categorise; tiny categories fold into "Other".
         var groups = items
-            .GroupBy(i => IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
+            .GroupBy(i => i.CategoryOverride ?? IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
             .ToDictionary(g => g.Key, g => g.ToList());
 
         foreach (var small in groups.Where(g => g.Key != AutoCategory.Other && g.Value.Count < auto.MinItemsPerPad).ToList())
@@ -315,6 +379,13 @@ internal sealed class AutoOrganizer
     {
         var auto = _app.Settings.Settings.AutoMode;
         var byOrigin = plan.Pads.SelectMany(p => p.Items).Where(i => i.OriginPadId is not null).ToList();
+
+        // Built-in desktop icons give way to the shortcuts that replace them.
+        foreach (var item in plan.Pads.SelectMany(p => p.Items).Where(i => i.SystemIcon is not null))
+            item.HiddenIcon = SystemDesktopIcons.Hide(item.SystemIcon!);
+
+        if (plan.Pads.Any(p => p.Items.Any(i => i.HiddenIcon is not null)))
+            SystemDesktopIcons.RefreshDesktop();
 
         using (Manager.DeferSave())
         {
@@ -415,7 +486,18 @@ internal sealed class AutoOrganizer
                         .Select(Manager.GetPaddock)
                         .FirstOrDefault(p => p?.Icons.Any(i => PathEquals(i.DesktopPath, item.Path)) == true);
 
-                    if (item.FromPublic)
+                    if (item.SystemIcon is not null)
+                    {
+                        // Our generated shortcut goes; the real icon comes back.
+                        if (holder is not null)
+                            Manager.RemoveIconFromPaddock(holder.Id, item.Path);
+
+                        TryDelete(item.Path);
+
+                        if (item.HiddenIcon is not null)
+                            SystemDesktopIcons.Restore(item.HiddenIcon);
+                    }
+                    else if (item.FromPublic)
                     {
                         // Back to staging; the elevated step below returns them.
                         if (holder is not null && _app.IconStore.MoveIntoPaddock(item.Path, DesktopIconService.PublicStagingFolder) is not null)
@@ -448,6 +530,9 @@ internal sealed class AutoOrganizer
 
             if (run.Items.Any(i => i.FromPublic))
                 await ReturnStagedItemsAsync();
+
+            if (run.Items.Any(i => i.HiddenIcon is not null))
+                SystemDesktopIcons.RefreshDesktop();
 
             // Pads that were faded out but never removed come back too.
             foreach (var window in Host.Windows.Where(w => w.Opacity < 1 && !restoredWindows.Contains(w)))

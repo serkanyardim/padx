@@ -97,7 +97,8 @@ public static class ElevatedMover
                 var from = Normalize(move.From);
                 var to = Normalize(move.To);
 
-                var allowed = File.Exists(from)
+                var isFolder = Directory.Exists(from);
+                var allowed = (isFolder || File.Exists(from))
                               && ((IsChildOf(from, commonDesktop) && IsInStore(to))
                                   || (IsInStore(from) && IsChildOf(to, commonDesktop)));
 
@@ -113,8 +114,17 @@ public static class ElevatedMover
 
                     // Copy + delete rather than move, so the file picks up the
                     // destination folder's permissions (and works across drives).
-                    File.Copy(from, target);
-                    File.Delete(from);
+                    if (isFolder)
+                    {
+                        CopyFolder(from, target);
+                        Directory.Delete(from, recursive: true);
+                    }
+                    else
+                    {
+                        File.Copy(from, target);
+                        File.Delete(from);
+                    }
+
                     done.Add(new MoveRequest(move.From, target));
                 }
                 catch (Exception ex)
@@ -138,6 +148,17 @@ public static class ElevatedMover
         }
 
         return 0;
+    }
+
+    private static void CopyFolder(string source, string target)
+    {
+        Directory.CreateDirectory(target);
+
+        foreach (var file in Directory.EnumerateFiles(source))
+            File.Copy(file, Path.Combine(target, Path.GetFileName(file)));
+
+        foreach (var folder in Directory.EnumerateDirectories(source))
+            CopyFolder(folder, Path.Combine(target, Path.GetFileName(folder)));
     }
 
     private static bool IsChildOf(string path, string folder)

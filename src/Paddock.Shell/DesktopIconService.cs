@@ -88,7 +88,7 @@ public sealed class DesktopIconService : IDisposable
     public const string PublicStagingFolder = "_public";
 
     /// <summary>
-    /// Files on the all-users desktop (shortcuts installed "for everyone").
+    /// Items on the all-users desktop (shortcuts installed "for everyone", and the odd folder).
     /// Moving these needs administrator rights — see <see cref="ElevatedMover"/>.
     /// </summary>
     public IReadOnlyList<string> GetCommonDesktopItems()
@@ -100,7 +100,7 @@ public sealed class DesktopIconService : IDisposable
 
         try
         {
-            foreach (var entry in Directory.EnumerateFiles(CommonDesktopRoot))
+            foreach (var entry in Directory.EnumerateFileSystemEntries(CommonDesktopRoot))
             {
                 if (!IsHiddenOrIgnored(entry))
                     items.Add(entry);

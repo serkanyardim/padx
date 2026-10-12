@@ -83,13 +83,13 @@ public class ShellHookService
         if (windowHandle == IntPtr.Zero)
             return;
 
+        // WPF adds WS_EX_APPWINDOW for ShowInTaskbar, and APPWINDOW beats
+        // TOOLWINDOW: left in place, every pad gets its own taskbar button.
         var exStyle = (long)NativeMethods.GetWindowLongPtr(windowHandle, NativeMethods.GWL_EXSTYLE);
-        if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) == 0)
+        var wanted = (exStyle | NativeMethods.WS_EX_TOOLWINDOW) & ~(long)NativeMethods.WS_EX_APPWINDOW;
+        if (wanted != exStyle)
         {
-            NativeMethods.SetWindowLongPtr(
-                windowHandle,
-                NativeMethods.GWL_EXSTYLE,
-                (IntPtr)(exStyle | NativeMethods.WS_EX_TOOLWINDOW));
+            NativeMethods.SetWindowLongPtr(windowHandle, NativeMethods.GWL_EXSTYLE, (IntPtr)wanted);
         }
 
         NativeMethods.SetWindowPos(

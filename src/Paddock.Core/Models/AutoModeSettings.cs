@@ -26,6 +26,12 @@ public class AutoModeSettings
     /// </summary>
     public bool IncludeAllUsersDesktop { get; set; } = true;
 
+    /// <summary>
+    /// Also take in the built-in desktop icons (Recycle Bin, user folder, This
+    /// PC…): a shortcut goes in a pad and the desktop icon is switched off.
+    /// </summary>
+    public bool IncludeSystemIcons { get; set; } = true;
+
     /// <summary>Hide, then reveal pads one by one, instead of switching instantly.</summary>
     public bool Animate { get; set; } = true;
 

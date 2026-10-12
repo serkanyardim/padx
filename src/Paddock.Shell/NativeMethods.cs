@@ -86,6 +86,7 @@ internal static partial class NativeMethods
 
     internal const int GWL_EXSTYLE = -20;
     internal const int WS_EX_TOOLWINDOW = 0x00000080;
+    internal const int WS_EX_APPWINDOW = 0x00040000;
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     internal static partial IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
@@ -134,6 +135,15 @@ internal static partial class NativeMethods
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     internal static extern IntPtr SHGetFileInfo(
         string pszPath,
+        uint dwFileAttributes,
+        ref SHFILEINFO psfi,
+        uint cbSizeFileInfo,
+        uint uFlags);
+
+    /// <summary>SHGetFileInfo for a shell item given as a PIDL (pass SHGFI_PIDL).</summary>
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    internal static extern IntPtr SHGetFileInfo(
+        IntPtr pidl,
         uint dwFileAttributes,
         ref SHFILEINFO psfi,
         uint cbSizeFileInfo,
