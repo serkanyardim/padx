@@ -168,7 +168,7 @@ internal sealed class AutoOrganizer
         {
             Log.Error("Auto organize could not plan the layout; nothing was changed.", ex);
             DeleteSystemShortcuts();
-            DigitalDialog.Inform("Auto organize failed", "Could not work out a layout, so nothing was changed. Details are in paddock.log.");
+            DigitalDialog.Inform("Auto organize failed", "Could not work out a layout, so nothing was changed. Details are in the log (Settings ▸ General ▸ Open).");
             return;
         }
 
@@ -194,7 +194,7 @@ internal sealed class AutoOrganizer
             Log.Error("Auto organize failed while moving items; rolling back.", ex);
             await UndoAsync(new PendingRun(snapshot, items, createdIds), animate);
             DigitalDialog.Inform("Auto organize failed",
-                "Something went wrong while moving items, so everything was put back the way it was. Details are in paddock.log.");
+                "Something went wrong while moving items, so everything was put back the way it was. Details are in the log (Settings ▸ General ▸ Open).");
             return;
         }
 

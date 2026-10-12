@@ -493,7 +493,7 @@ public partial class PaddockControl : UserControl
         {
             MessageBox.Show(
                 $"There are no {description} on the desktop to collect.",
-                "Paddock",
+                "padx",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -501,9 +501,9 @@ public partial class PaddockControl : UserControl
 
         var answer = MessageBox.Show(
             $"Move {items.Count} {description} into \"{ViewModel.Title}\"?\n\n" +
-            "They will be moved off the desktop into this paddock's folder, and " +
-            "go back to the desktop if you drag them out or remove the paddock.",
-            "Paddock",
+            "They will be moved off the desktop into this pad's folder, and " +
+            "go back to the desktop if you drag them out or remove the pad.",
+            "padx",
             MessageBoxButton.OKCancel,
             MessageBoxImage.Question);
 

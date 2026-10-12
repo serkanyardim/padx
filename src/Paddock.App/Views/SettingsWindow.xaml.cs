@@ -46,7 +46,7 @@ public partial class SettingsWindow : Window
         var choice = DigitalDialog.Choose("Startup layout",
             options.Count == 1
                 ? "No configs saved yet — use the tray menu: Config ▸ Save Config."
-                : "Start with the last session, or load this config every time Paddock starts:",
+                : "Start with the last session, or load this config every time padx starts:",
             options,
             _viewModel.StartupLayout);
 

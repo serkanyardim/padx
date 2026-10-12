@@ -13,7 +13,7 @@ internal sealed class OrganizeBar : Window
 {
     public OrganizeBar(string summary, Action accept, Action revert)
     {
-        Title = "Paddock";
+        Title = "padx";
         SizeToContent = SizeToContent.WidthAndHeight;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;

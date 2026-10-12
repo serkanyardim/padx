@@ -16,7 +16,7 @@ internal sealed class DigitalDialog : Window
 
     private DigitalDialog(string title, string message, string confirmText, string? cancelText, string? inputText = null, int selectLength = -1)
     {
-        Title = "Paddock";
+        Title = "padx";
         Width = 420;
         SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None;

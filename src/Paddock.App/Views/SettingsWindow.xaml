@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:helpers="clr-namespace:Paddock.App.Helpers"
         xmlns:controls="clr-namespace:Paddock.App.Views.Controls"
-        Title="Paddock Settings"
+        Title="padx Settings"
         Width="600" Height="700"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -78,7 +78,7 @@
             <Grid DockPanel.Dock="Top" Height="44">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="22,0,0,0">
                     <Rectangle Width="8" Height="8" Fill="{StaticResource D.Accent}" Margin="0,0,10,0" />
-                    <TextBlock Text="PADDOCK" FontFamily="{StaticResource D.Mono}" FontSize="12"
+                    <TextBlock Text="PADX" FontFamily="{StaticResource D.Mono}" FontSize="12"
                                FontWeight="SemiBold" Foreground="{StaticResource D.Text}" />
                     <TextBlock Text="  // SETTINGS" FontFamily="{StaticResource D.Mono}" FontSize="12"
                                Foreground="{StaticResource D.TextDim}" />
@@ -124,7 +124,7 @@
                                               VerticalAlignment="Center" IsChecked="{Binding StartWithWindows}" />
                                     <StackPanel>
                                         <TextBlock Text="Start with Windows" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="launch paddock when you sign in" Style="{StaticResource D.Hint}" />
+                                        <TextBlock Text="launch padx when you sign in" Style="{StaticResource D.Hint}" />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>

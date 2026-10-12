@@ -8,7 +8,10 @@ namespace Paddock.Shell;
 public class StartupManager
 {
     private const string RegistryKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "Paddock";
+    private const string AppName = "padx";
+
+    /// <summary>The entry name used before the app was renamed; removed so it never starts twice.</summary>
+    private const string LegacyAppName = "Paddock";
 
     /// <summary>
     /// Returns true if Paddock is configured to start with Windows.
@@ -26,6 +29,8 @@ public class StartupManager
     {
         using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true);
         if (key is null) return;
+
+        key.DeleteValue(LegacyAppName, throwOnMissingValue: false);
 
         if (enabled)
         {

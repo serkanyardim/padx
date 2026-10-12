@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <RootNamespace>Paddock.App</RootNamespace>
-    <AssemblyName>Paddock</AssemblyName>
+    <AssemblyName>padx</AssemblyName>
     <!-- Uncomment when assets/tray-icon.ico is added -->
     <!-- <ApplicationIcon>..\..\assets\tray-icon.ico</ApplicationIcon> -->
   </PropertyGroup>

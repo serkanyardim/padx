@@ -51,7 +51,7 @@ public partial class App : Application
         }
 
         InstallCrashHandlers();
-        Log.Info($"Paddock starting (v{typeof(App).Assembly.GetName().Version}).");
+        Log.Info($"padx starting (v{typeof(App).Assembly.GetName().Version}).");
 
         if (!ClaimSingleInstance())
         {
@@ -194,8 +194,8 @@ public partial class App : Application
     {
         _trayIcon?.ShowBalloonTip(
             7000,
-            "Paddock is running",
-            "Right-click the tray icon and choose \"New Paddock...\", then drag an area on the desktop.",
+            "padx is running",
+            "Right-click the tray icon and choose \"New Pad\", then drag an area on the desktop.",
             System.Windows.Forms.ToolTipIcon.Info);
     }
 
@@ -204,7 +204,7 @@ public partial class App : Application
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
             Visible = true,
-            Text = "Paddock - Desktop Organizer",
+            Text = "padx — desktop, organized",
             Icon = CreateTrayIcon(),
         };
 
@@ -566,7 +566,7 @@ public partial class App : Application
             _instanceMutex = null;
         }
 
-        Log.Info("Paddock exited.");
+        Log.Info("padx exited.");
 
         if (_trayIcon is not null)
         {
