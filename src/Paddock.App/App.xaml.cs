@@ -164,15 +164,16 @@ public partial class App : Application
             Icon = CreateTrayIcon(),
         };
 
-        var menu = new System.Windows.Forms.ContextMenuStrip();
-        menu.Items.Add("New Paddock...", null, (_, _) => CreateNewPaddock());
-        menu.Items.Add("Show/Hide Paddocks", null, (_, _) => TogglePaddocks());
+        int iconSize = Helpers.TrayMenuIcons.CurrentSize();
+        var menu = new System.Windows.Forms.ContextMenuStrip
+        {
+            ImageScalingSize = new System.Drawing.Size(iconSize, iconSize),
+        };
+        menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
+        menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
+        menu.Items.Add("About...", Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
         menu.Items.Add("-");
-        menu.Items.Add("Restore All Icons to Desktop", null, (_, _) => RestoreAllIcons());
-        menu.Items.Add("Settings", null, (_, _) => OpenSettings());
-        menu.Items.Add("Open Settings Folder", null, (_, _) => OpenSettingsFolder());
-        menu.Items.Add("-");
-        menu.Items.Add("Exit", null, (_, _) => ExitApplication());
+        menu.Items.Add("Exit", Helpers.TrayMenuIcons.Exit(iconSize), (_, _) => ExitApplication());
 
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => TogglePaddocks();
@@ -247,6 +248,18 @@ public partial class App : Application
         {
             Log.Error($"Could not open '{AppPaths.DataFolder}'.", ex);
         }
+    }
+
+    private static void ShowAbout()
+    {
+        var version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?";
+        MessageBox.Show(
+            $"Paddock {version}\n\n" +
+            "Free, open-source desktop icon organizer for Windows.\n\n" +
+            "https://github.com/HappyDane/Paddock",
+            "About Paddock",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     private void ExitApplication()
