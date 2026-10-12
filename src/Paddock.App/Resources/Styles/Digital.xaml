@@ -1,0 +1,449 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        "Digital" look: near-black panels, hairline edges, square corners,
+        monospace labels and a single cyan accent. Theme-independent — used by
+        the settings window and every context menu.
+    -->
+
+    <!-- Tokens -->
+    <Color x:Key="D.AccentColor">#00D1FF</Color>
+    <SolidColorBrush x:Key="D.Bg" Color="#0B0E13" />
+    <SolidColorBrush x:Key="D.Panel" Color="#10151C" />
+    <SolidColorBrush x:Key="D.Raised" Color="#161C25" />
+    <SolidColorBrush x:Key="D.Line" Color="#1E2631" />
+    <SolidColorBrush x:Key="D.LineStrong" Color="#2B3542" />
+    <SolidColorBrush x:Key="D.Text" Color="#D9E1EA" />
+    <SolidColorBrush x:Key="D.TextDim" Color="#7D8998" />
+    <SolidColorBrush x:Key="D.TextFaint" Color="#4A5563" />
+    <SolidColorBrush x:Key="D.Accent" Color="{StaticResource D.AccentColor}" />
+    <SolidColorBrush x:Key="D.AccentSoft" Color="#1A00D1FF" />
+    <SolidColorBrush x:Key="D.Danger" Color="#FF5C5C" />
+    <FontFamily x:Key="D.Mono">Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="D.Sans">Segoe UI Variable Text, Segoe UI</FontFamily>
+
+    <!-- Text roles -->
+    <Style x:Key="D.Label" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource D.Sans}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+    </Style>
+    <Style x:Key="D.Hint" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Foreground" Value="{StaticResource D.TextFaint}" />
+        <Setter Property="Margin" Value="0,2,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="D.Section" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="Foreground" Value="{StaticResource D.Accent}" />
+        <Setter Property="Margin" Value="0,18,0,6" />
+    </Style>
+    <Style x:Key="D.Value" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource D.TextDim}" />
+        <Setter Property="Width" Value="40" />
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- A settings row: label on the left, control on the right, hairline below -->
+    <Style x:Key="D.Row" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{StaticResource D.Line}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="0,9" />
+    </Style>
+
+    <!-- Toggle switch -->
+    <Style x:Key="D.Toggle" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Track" Width="34" Height="16"
+                            Background="{StaticResource D.Bg}"
+                            BorderBrush="{StaticResource D.LineStrong}"
+                            BorderThickness="1" CornerRadius="2">
+                        <Border x:Name="Knob" Width="10" Height="10" Margin="2,0"
+                                HorizontalAlignment="Left" CornerRadius="1"
+                                Background="{StaticResource D.TextDim}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                            <Setter TargetName="Track" Property="Background" Value="{StaticResource D.AccentSoft}" />
+                            <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
+                            <Setter TargetName="Knob" Property="Background" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Track" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Slider: 2px rail, accent fill, square thumb -->
+    <Style x:Key="D.SliderRail" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Grid Background="Transparent">
+                        <Border Height="2" VerticalAlignment="Center" Background="{TemplateBinding Background}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="D.Slider" TargetType="Slider">
+        <Setter Property="Width" Value="150" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Track x:Name="PART_Track" Height="18">
+                        <Track.DecreaseRepeatButton>
+                            <RepeatButton Command="Slider.DecreaseLarge"
+                                          Style="{StaticResource D.SliderRail}"
+                                          Background="{StaticResource D.Accent}" />
+                        </Track.DecreaseRepeatButton>
+                        <Track.IncreaseRepeatButton>
+                            <RepeatButton Command="Slider.IncreaseLarge"
+                                          Style="{StaticResource D.SliderRail}"
+                                          Background="{StaticResource D.LineStrong}" />
+                        </Track.IncreaseRepeatButton>
+                        <Track.Thumb>
+                            <Thumb>
+                                <Thumb.Template>
+                                    <ControlTemplate TargetType="Thumb">
+                                        <Border x:Name="T" Width="6" Height="14"
+                                                Background="{StaticResource D.Text}" />
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="T" Property="Background" Value="{StaticResource D.Accent}" />
+                                            </Trigger>
+                                            <Trigger Property="IsDragging" Value="True">
+                                                <Setter TargetName="T" Property="Background" Value="{StaticResource D.Accent}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Thumb.Template>
+                            </Thumb>
+                        </Track.Thumb>
+                    </Track>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Segmented choice (radio buttons laid side by side) -->
+    <Style x:Key="D.Segment" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="MinWidth" Value="48" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Bd" Background="{StaticResource D.Bg}"
+                            BorderBrush="{StaticResource D.LineStrong}"
+                            BorderThickness="1" Padding="10,4" Margin="-1,0,0,0">
+                        <ContentPresenter x:Name="CP" HorizontalAlignment="Center"
+                                          TextElement.FontFamily="{StaticResource D.Mono}"
+                                          TextElement.FontSize="11"
+                                          TextElement.Foreground="{StaticResource D.TextDim}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CP" Property="TextElement.Foreground" Value="{StaticResource D.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource D.AccentSoft}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                            <Setter TargetName="CP" Property="TextElement.Foreground" Value="{StaticResource D.Accent}" />
+                            <Setter Property="Panel.ZIndex" Value="1" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Outline button -->
+    <Style x:Key="D.Button" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{StaticResource D.Bg}"
+                            BorderBrush="{StaticResource D.LineStrong}"
+                            BorderThickness="1" Padding="12,5">
+                        <ContentPresenter x:Name="CP" HorizontalAlignment="Center"
+                                          TextElement.FontFamily="{StaticResource D.Mono}"
+                                          TextElement.FontSize="11"
+                                          TextElement.Foreground="{TemplateBinding Foreground}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                            <Setter TargetName="CP" Property="TextElement.Foreground" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource D.AccentSoft}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Bare glyph button for window chrome -->
+    <Style x:Key="D.ChromeButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{StaticResource D.TextDim}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="Transparent" Width="40" Height="32">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#33FF5C5C" />
+                            <Setter Property="Foreground" Value="{StaticResource D.Danger}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Text field -->
+    <Style x:Key="D.Field" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+        <Setter Property="CaretBrush" Value="{StaticResource D.Accent}" />
+        <Setter Property="SelectionBrush" Value="{StaticResource D.Accent}" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Bd" Background="{StaticResource D.Bg}"
+                            BorderBrush="{StaticResource D.LineStrong}"
+                            BorderThickness="1" Padding="6,3">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      VerticalScrollBarVisibility="Hidden" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.TextFaint}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Tabs: plain mono labels with an accent underline -->
+    <Style x:Key="D.Tab" TargetType="TabItem">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="Bd" Background="Transparent" Padding="0,10"
+                            Margin="0,0,26,-1" BorderThickness="0,0,0,2"
+                            BorderBrush="Transparent">
+                        <ContentPresenter x:Name="CP" ContentSource="Header"
+                                          TextElement.FontFamily="{StaticResource D.Mono}"
+                                          TextElement.FontSize="11"
+                                          TextElement.Foreground="{StaticResource D.TextDim}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="CP" Property="TextElement.Foreground" Value="{StaticResource D.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                            <Setter TargetName="CP" Property="TextElement.Foreground" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="D.Tabs" TargetType="TabControl">
+        <Setter Property="ItemContainerStyle" Value="{StaticResource D.Tab}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Padding="22,0"
+                                BorderBrush="{StaticResource D.Line}" BorderThickness="0,0,0,1">
+                            <TabPanel IsItemsHost="True" />
+                        </Border>
+                        <ContentPresenter ContentSource="SelectedContent" />
+                    </DockPanel>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===== Implicit styles: apply app-wide ===== -->
+
+    <!-- Slim scrollbars (paddock icon grids and the settings window) -->
+    <ControlTemplate x:Key="D.ScrollThumb" TargetType="Thumb">
+        <Border Background="#668B98A8" CornerRadius="2" />
+    </ControlTemplate>
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="5" />
+        <Setter Property="MinWidth" Value="5" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Track x:Name="PART_Track" IsDirectionReversed="True">
+                        <Track.Thumb>
+                            <Thumb Template="{StaticResource D.ScrollThumb}" />
+                        </Track.Thumb>
+                    </Track>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Width" Value="Auto" />
+                <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="5" />
+                <Setter Property="MinHeight" Value="5" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb Template="{StaticResource D.ScrollThumb}" />
+                                </Track.Thumb>
+                            </Track>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{StaticResource D.Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource D.LineStrong}" />
+        <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="HasDropShadow" Value="False" />
+    </Style>
+
+    <!-- Context menus -->
+    <Style TargetType="ContextMenu">
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+        <Setter Property="FontFamily" Value="{StaticResource D.Sans}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="HasDropShadow" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Border Background="{StaticResource D.Panel}"
+                            BorderBrush="{StaticResource D.LineStrong}"
+                            BorderThickness="1" Padding="0,4" MinWidth="200">
+                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="Separator">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Separator">
+                    <Border Height="1" Margin="10,4" Background="{StaticResource D.Line}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{StaticResource D.Text}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Bd" Background="Transparent" Margin="4,0" Padding="8,5">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="16" />
+                            </Grid.ColumnDefinitions>
+
+                            <ContentPresenter x:Name="IconHost" ContentSource="Icon"
+                                              Width="14" Height="14"
+                                              HorizontalAlignment="Left" VerticalAlignment="Center" />
+
+                            <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                              RecognizesAccessKey="True" VerticalAlignment="Center" />
+
+                            <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}"
+                                       Margin="18,0,0,0" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource D.Mono}" FontSize="10"
+                                       Foreground="{StaticResource D.TextFaint}" />
+
+                            <Path x:Name="Check" Grid.Column="3" Visibility="Collapsed"
+                                  Data="M0,4 L3,7 L9,1" Stroke="{StaticResource D.Accent}"
+                                  StrokeThickness="1.6" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <Path x:Name="Arrow" Grid.Column="3" Visibility="Collapsed"
+                                  Data="M0,0 L4,4 L0,8" Stroke="{StaticResource D.TextDim}"
+                                  StrokeThickness="1.2" HorizontalAlignment="Right" VerticalAlignment="Center" />
+
+                            <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="6" VerticalOffset="-6"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Fade"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="{StaticResource D.Panel}"
+                                        BorderBrush="{StaticResource D.LineStrong}"
+                                        BorderThickness="1" Padding="0,4" MinWidth="160">
+                                    <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Role" Value="SubmenuHeader">
+                            <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource D.AccentSoft}" />
+                            <Setter TargetName="Arrow" Property="Stroke" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

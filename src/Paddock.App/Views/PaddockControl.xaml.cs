@@ -36,6 +36,43 @@ public partial class PaddockControl : UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        BuildColorMenu();
+    }
+
+    /// <summary>"Default" followed by one swatch item per palette colour.</summary>
+    private void BuildColorMenu()
+    {
+        ColorMenu.Items.Add(new MenuItem { Header = "Default", Tag = null });
+        ColorMenu.Items.Add(new Separator());
+
+        foreach (var colour in PadPalette.PadColors)
+        {
+            ColorMenu.Items.Add(new MenuItem
+            {
+                Header = colour.Name,
+                Tag = colour.Hex,
+                Icon = new System.Windows.Shapes.Rectangle
+                {
+                    Width = 12,
+                    Height = 12,
+                    Fill = colour.Brush,
+                    Stroke = (System.Windows.Media.Brush)FindResource("D.LineStrong"),
+                    StrokeThickness = 1,
+                },
+            });
+        }
+
+        foreach (var item in ColorMenu.Items.OfType<MenuItem>())
+            item.Click += (_, _) => ViewModel.SetColor(item.Tag as string);
+    }
+
+    /// <summary>Ticks the pad's current colour each time the menu opens.</summary>
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var current = ViewModel.CustomColor;
+
+        foreach (var item in ColorMenu.Items.OfType<MenuItem>())
+            item.IsChecked = string.Equals(item.Tag as string, current, StringComparison.OrdinalIgnoreCase);
     }
 
     private PaddockViewModel ViewModel => (PaddockViewModel)DataContext;

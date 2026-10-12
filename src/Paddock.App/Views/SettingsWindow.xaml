@@ -1,242 +1,507 @@
 <Window x:Class="Paddock.App.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Paddock"
-        Width="420" Height="600"
+        xmlns:helpers="clr-namespace:Paddock.App.Helpers"
+        xmlns:controls="clr-namespace:Paddock.App.Views.Controls"
+        Title="Paddock Settings"
+        Width="600" Height="700"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="SingleBorderWindow"
-        ResizeMode="NoResize"
-        Background="{DynamicResource SettingsBackground}">
+        WindowStyle="None"
+        ResizeMode="CanMinimize"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        Background="{StaticResource D.Bg}"
+        KeyDown="Window_KeyDown">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  Padding="24,20">
-        <StackPanel>
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="44" ResizeBorderThickness="0"
+                      GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
 
-            <!-- App title -->
-            <TextBlock Text="Paddock"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="24"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource TextPrimary}"
-                       Margin="0,0,0,4" />
-            <TextBlock Text="Desktop Organizer"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="13"
-                       Foreground="{DynamicResource TextSecondary}"
-                       Margin="0,0,0,24" />
+    <Window.Resources>
+        <helpers:EqualsConverter x:Key="Eq" />
 
-            <!-- General section -->
-            <TextBlock Text="GENERAL"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="11"
-                       FontWeight="Medium"
-                       Foreground="{DynamicResource TextTertiary}"
-                       Margin="14,0,0,6" />
+        <!-- Key cap used in the mouse reference list -->
+        <Style x:Key="Chip" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{StaticResource D.LineStrong}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+        <Style x:Key="ChipText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource D.Mono}" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="Foreground" Value="{StaticResource D.TextDim}" />
+        </Style>
+        <Style TargetType="controls:HotkeyBox" BasedOn="{StaticResource D.Field}">
+            <Setter Property="Width" Value="160" />
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
 
-            <Border Background="{DynamicResource SettingsCardBackground}"
-                    CornerRadius="12"
-                    Padding="16,4"
-                    Margin="0,0,0,20">
-                <StackPanel>
-                    <Grid Height="44">
-                        <TextBlock Text="Start with Windows"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <CheckBox HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  IsChecked="{Binding StartWithWindows}" />
-                    </Grid>
+    <Border BorderBrush="{StaticResource D.LineStrong}" BorderThickness="1">
+        <DockPanel>
 
-                    <Rectangle Height="0.5" Fill="{DynamicResource Separator}" Margin="-16,0" />
-
-                    <Grid Height="44">
-                        <TextBlock Text="Theme"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <ComboBox HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Width="100"
-                                  SelectedValue="{Binding GlobalTheme}"
-                                  SelectedValuePath="Content">
-                            <ComboBoxItem Content="dark" />
-                            <ComboBoxItem Content="light" />
-                        </ComboBox>
-                    </Grid>
+            <!-- ===== Title bar ===== -->
+            <Grid DockPanel.Dock="Top" Height="44">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="22,0,0,0">
+                    <Rectangle Width="8" Height="8" Fill="{StaticResource D.Accent}" Margin="0,0,10,0" />
+                    <TextBlock Text="PADDOCK" FontFamily="{StaticResource D.Mono}" FontSize="12"
+                               FontWeight="SemiBold" Foreground="{StaticResource D.Text}" />
+                    <TextBlock Text="  // SETTINGS" FontFamily="{StaticResource D.Mono}" FontSize="12"
+                               Foreground="{StaticResource D.TextDim}" />
                 </StackPanel>
+
+                <TextBlock Text="{Binding Version, StringFormat=v{0}}" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" Margin="0,0,56,0"
+                           FontFamily="{StaticResource D.Mono}" FontSize="10"
+                           Foreground="{StaticResource D.TextFaint}" />
+
+                <Button Style="{StaticResource D.ChromeButton}" HorizontalAlignment="Right"
+                        VerticalAlignment="Top" Margin="0,6,6,0" ToolTip="Close (Esc)"
+                        WindowChrome.IsHitTestVisibleInChrome="True" Click="Close_Click">
+                    <Path Data="M0,0 L10,10 M10,0 L0,10" StrokeThickness="1.3"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+            </Grid>
+
+            <!-- ===== Status line ===== -->
+            <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource D.Line}"
+                    BorderThickness="0,1,0,0" Padding="22,8">
+                <Grid>
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="6" Height="6" Fill="{StaticResource D.Accent}" Margin="0,0,8,0" />
+                        <TextBlock Text="changes apply instantly" Style="{StaticResource D.Hint}" Margin="0" />
+                    </StackPanel>
+                    <TextBlock Text="esc to close" Style="{StaticResource D.Hint}" Margin="0"
+                               HorizontalAlignment="Right" />
+                </Grid>
             </Border>
 
-            <!-- Behavior section -->
-            <TextBlock Text="BEHAVIOR"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="11"
-                       FontWeight="Medium"
-                       Foreground="{DynamicResource TextTertiary}"
-                       Margin="14,0,0,6" />
+            <TabControl Style="{StaticResource D.Tabs}">
 
-            <Border Background="{DynamicResource SettingsCardBackground}"
-                    CornerRadius="12"
-                    Padding="16,4"
-                    Margin="0,0,0,20">
-                <StackPanel>
-                    <Grid Height="44">
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Quick Hide"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="14"
-                                       Foreground="{DynamicResource TextPrimary}" />
-                            <TextBlock Text="Double-click desktop to toggle"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextTertiary}"
-                                       Margin="0,1,0,0" />
+                <!-- ================= GENERAL ================= -->
+                <TabItem Header="01  GENERAL">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
+                        <StackPanel>
+                            <TextBlock Text="// STARTUP" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding StartWithWindows}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Start with Windows" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="launch paddock when you sign in" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock Text="// BEHAVIOR" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding SnapEnabled}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Snap to edges" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="pads snap to screen edges and to each other" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="40"
+                                                Value="{Binding IntelligentSpacing}" />
+                                        <TextBlock Style="{StaticResource D.Value}" Text="{Binding IntelligentSpacing, StringFormat={}{0:0}px}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Spacing" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="gap kept between pads and edges" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="CLICK"
+                                                     IsChecked="{Binding RollUpExpandMode, Converter={StaticResource Eq}, ConverterParameter=click}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="HOVER"
+                                                     IsChecked="{Binding RollUpExpandMode, Converter={StaticResource Eq}, ConverterParameter=hover}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Rolled-up pads open on" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="double-click a title bar to roll a pad up" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock Text="// DATA" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource D.Button}"
+                                            VerticalAlignment="Center" Content="RESTORE" Click="RestoreAll_Click" />
+                                    <StackPanel>
+                                        <TextBlock Text="Restore all icons to desktop" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="empties every pad; the pads themselves stay" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource D.Button}"
+                                            VerticalAlignment="Center" Content="OPEN" Click="OpenFolder_Click" />
+                                    <StackPanel>
+                                        <TextBlock Text="Settings &amp; log folder" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="%AppData%\Paddock" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
                         </StackPanel>
-                        <CheckBox HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  IsChecked="{Binding QuickHideEnabled}" />
-                    </Grid>
+                    </ScrollViewer>
+                </TabItem>
 
-                    <Rectangle Height="0.5" Fill="{DynamicResource Separator}" Margin="-16,0" />
+                <!-- ================= SHORTCUTS ================= -->
+                <TabItem Header="02  SHORTCUTS">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
+                        <StackPanel>
+                            <TextBlock Text="// GLOBAL KEYS" Style="{StaticResource D.Section}" />
+                            <TextBlock Style="{StaticResource D.Hint}" Margin="0,0,0,6"
+                                       Text="work from any app. click a field and press a combination — backspace clears it." />
 
-                    <Grid Height="44">
-                        <TextBlock Text="Snap to Edges"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <CheckBox HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  IsChecked="{Binding SnapEnabled}" />
-                    </Grid>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <controls:HotkeyBox DockPanel.Dock="Right" Hotkey="{Binding ToggleHotkey}" />
+                                    <TextBlock Text="Show / hide pads" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
 
-                    <Rectangle Height="0.5" Fill="{DynamicResource Separator}" Margin="-16,0" />
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <controls:HotkeyBox DockPanel.Dock="Right" Hotkey="{Binding NewPadHotkey}" />
+                                    <TextBlock Text="New pad" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
 
-                    <Grid Height="52">
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="Roll-Up Expand"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="14"
-                                       Foreground="{DynamicResource TextPrimary}" />
-                            <TextBlock Text="How collapsed zones re-expand"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextTertiary}"
-                                       Margin="0,1,0,0" />
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <controls:HotkeyBox DockPanel.Dock="Right" Hotkey="{Binding RollUpAllHotkey}" />
+                                    <TextBlock Text="Roll up / expand all pads" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <controls:HotkeyBox DockPanel.Dock="Right" Hotkey="{Binding SettingsHotkey}" />
+                                    <TextBlock Text="Open settings" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock Text="{Binding HotkeyStatus}" Foreground="{StaticResource D.Danger}"
+                                       FontFamily="{StaticResource D.Mono}" FontSize="10" Margin="0,8,0,0"
+                                       TextWrapping="Wrap" />
+
+                            <TextBlock Text="// MOUSE" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="DOUBLE-CLICK TITLE" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Roll up / expand a pad" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="DRAG TITLE" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Move a pad" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="DRAG BOTTOM-RIGHT" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Resize a pad" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="RIGHT-CLICK PAD" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Pad menu: color, sort, rename" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="DRAG ICON OUT" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Put an icon back on the desktop" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="DOUBLE-CLICK TRAY" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Show / hide pads" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
                         </StackPanel>
-                        <ComboBox HorizontalAlignment="Right"
-                                  VerticalAlignment="Center"
-                                  Width="100"
-                                  SelectedValue="{Binding RollUpExpandMode}"
-                                  SelectedValuePath="Content">
-                            <ComboBoxItem Content="click" />
-                            <ComboBoxItem Content="hover" />
-                        </ComboBox>
-                    </Grid>
-                </StackPanel>
-            </Border>
+                    </ScrollViewer>
+                </TabItem>
 
-            <!-- Appearance section -->
-            <TextBlock Text="DEFAULT APPEARANCE"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="11"
-                       FontWeight="Medium"
-                       Foreground="{DynamicResource TextTertiary}"
-                       Margin="14,0,0,6" />
+                <!-- ================= APPEARANCE ================= -->
+                <TabItem Header="03  APPEARANCE">
+                    <DockPanel>
 
-            <Border Background="{DynamicResource SettingsCardBackground}"
-                    CornerRadius="12"
-                    Padding="16,4"
-                    Margin="0,0,0,20">
-                <StackPanel>
-                    <Grid Height="44">
-                        <TextBlock Text="Opacity"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                            <Slider Width="120"
-                                    Minimum="0.2" Maximum="1.0"
-                                    Value="{Binding DefaultOpacity}"
-                                    VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding DefaultOpacity, StringFormat={}{0:P0}}"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       Width="36"
-                                       TextAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0" />
-                        </StackPanel>
-                    </Grid>
+                        <!-- Live preview stays put while the options scroll -->
+                        <Border DockPanel.Dock="Top" Height="168" Margin="22,14,22,4"
+                                BorderBrush="{StaticResource D.Line}" BorderThickness="1">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#1D3B5E" Offset="0" />
+                                    <GradientStop Color="#3A2456" Offset="0.55" />
+                                    <GradientStop Color="#0F4B4B" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Grid>
+                                <TextBlock Text="PREVIEW" Margin="8,6" FontFamily="{StaticResource D.Mono}"
+                                           FontSize="9" Foreground="#80FFFFFF" />
 
-                    <Rectangle Height="0.5" Fill="{DynamicResource Separator}" Margin="-16,0" />
+                                <Border Width="280" Height="136" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Background="{Binding PreviewBackground}"
+                                        BorderBrush="{Binding PreviewBorderBrush}"
+                                        BorderThickness="{Binding PreviewBorderThickness}"
+                                        CornerRadius="{Binding PreviewCornerRadius}">
+                                    <Grid>
+                                        <Border Height="32" VerticalAlignment="Top"
+                                                Background="{Binding PreviewTitleBarBrush}"
+                                                CornerRadius="{Binding PreviewTitleBarCornerRadius}">
+                                            <TextBlock Text="{Binding PreviewTitle}" Margin="12,0"
+                                                       VerticalAlignment="Center" FontWeight="Medium"
+                                                       Foreground="{Binding PreviewTitleBrush}"
+                                                       FontFamily="{Binding PreviewTitleFont}"
+                                                       FontSize="{Binding TitleFontSize}"
+                                                       HorizontalAlignment="{Binding PreviewTitleAlignment}" />
+                                        </Border>
 
-                    <Grid Height="44">
-                        <TextBlock Text="Corner Radius"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                            <Slider Width="120"
-                                    Minimum="0" Maximum="32"
-                                    Value="{Binding DefaultCornerRadius}"
-                                    VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding DefaultCornerRadius, StringFormat={}{0:F0}px}"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       Width="36"
-                                       TextAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0" />
-                        </StackPanel>
-                    </Grid>
+                                        <StackPanel Orientation="Horizontal" Margin="8,38,8,4">
+                                            <StackPanel Width="{Binding PreviewCellWidth}">
+                                                <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
+                                                        CornerRadius="4" Background="#3D8BFD" Margin="0,4,0,4" />
+                                                <TextBlock Text="Docs" TextAlignment="Center" FontSize="10.5"
+                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Visibility="{Binding PreviewLabelVisibility}" />
+                                            </StackPanel>
+                                            <StackPanel Width="{Binding PreviewCellWidth}">
+                                                <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
+                                                        CornerRadius="4" Background="#FFC940" Margin="0,4,0,4" />
+                                                <TextBlock Text="Tools" TextAlignment="Center" FontSize="10.5"
+                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Visibility="{Binding PreviewLabelVisibility}" />
+                                            </StackPanel>
+                                            <StackPanel Width="{Binding PreviewCellWidth}">
+                                                <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
+                                                        CornerRadius="4" Background="#4DFFB8" Margin="0,4,0,4" />
+                                                <TextBlock Text="Notes" TextAlignment="Center" FontSize="10.5"
+                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Visibility="{Binding PreviewLabelVisibility}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
 
-                    <Rectangle Height="0.5" Fill="{DynamicResource Separator}" Margin="-16,0" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
+                            <StackPanel>
 
-                    <Grid Height="44">
-                        <TextBlock Text="Zone Spacing"
-                                   FontFamily="Segoe UI Variable, Segoe UI"
-                                   FontSize="14"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   VerticalAlignment="Center" />
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                            <Slider Width="120"
-                                    Minimum="0" Maximum="40"
-                                    Value="{Binding IntelligentSpacing}"
-                                    VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding IntelligentSpacing, StringFormat={}{0:F0}px}"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextSecondary}"
-                                       Width="36"
-                                       TextAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="8,0,0,0" />
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+                                <TextBlock Text="// PAD" Style="{StaticResource D.Section}" />
 
-            <!-- Version -->
-            <TextBlock Text="Paddock v0.1.0"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="11"
-                       Foreground="{DynamicResource TextTertiary}"
-                       HorizontalAlignment="Center"
-                       Margin="0,8,0,0" />
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                             Color="{Binding PadColor}" />
+                                        <StackPanel>
+                                            <TextBlock Text="Default color" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="right-click a pad → color to give it its own" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
 
-        </StackPanel>
-    </ScrollViewer>
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="1"
+                                                    Value="{Binding PadOpacity}" />
+                                            <TextBlock Style="{StaticResource D.Value}" Text="{Binding PadOpacity, StringFormat={}{0:P0}}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Opacity" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="icons always stay fully visible" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="16"
+                                                    Value="{Binding CornerRadius}" />
+                                            <TextBlock Style="{StaticResource D.Value}" Text="{Binding CornerRadius, StringFormat={}{0:0}px}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Corner radius" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <TextBlock Text="// EDGE" Style="{StaticResource D.Section}" />
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                             Color="{Binding BorderColor}" />
+                                        <TextBlock Text="Edge color" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="3"
+                                                    TickFrequency="1" IsSnapToTickEnabled="True"
+                                                    Value="{Binding BorderThickness}" />
+                                            <TextBlock Style="{StaticResource D.Value}" Text="{Binding BorderThickness, StringFormat={}{0:0}px}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Edge thickness" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <TextBlock Text="// TITLE BAR" Style="{StaticResource D.Section}" />
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                             Color="{Binding TitleBarColor}" />
+                                        <TextBlock Text="Bar color" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Slider Style="{StaticResource D.Slider}" Minimum="0" Maximum="1"
+                                                    Value="{Binding TitleBarOpacity}" />
+                                            <TextBlock Style="{StaticResource D.Value}" Text="{Binding TitleBarOpacity, StringFormat={}{0:P0}}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Bar opacity" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="0% hides the bar, title text stays" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
+                                                             Color="{Binding TitleTextColor}" />
+                                        <TextBlock Text="Title color" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                            <Slider Style="{StaticResource D.Slider}" Minimum="8" Maximum="20"
+                                                    TickFrequency="1" IsSnapToTickEnabled="True"
+                                                    Value="{Binding TitleFontSize}" />
+                                            <TextBlock Style="{StaticResource D.Value}" Text="{Binding TitleFontSize, StringFormat={}{0:0}pt}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Title size" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="LEFT"
+                                                         IsChecked="{Binding TitleAlignment, Converter={StaticResource Eq}, ConverterParameter=Left}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="CENTER"
+                                                         IsChecked="{Binding TitleAlignment, Converter={StaticResource Eq}, ConverterParameter=Center}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="RIGHT"
+                                                         IsChecked="{Binding TitleAlignment, Converter={StaticResource Eq}, ConverterParameter=Right}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Title alignment" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="MONO"
+                                                         IsChecked="{Binding TitleFont, Converter={StaticResource Eq}, ConverterParameter='Cascadia Mono'}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="DIN"
+                                                         IsChecked="{Binding TitleFont, Converter={StaticResource Eq}, ConverterParameter=Bahnschrift}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="SANS"
+                                                         IsChecked="{Binding TitleFont, Converter={StaticResource Eq}, ConverterParameter='Segoe UI Variable'}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Title font" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                                  VerticalAlignment="Center" IsChecked="{Binding TitleUppercase}" />
+                                        <TextBlock Text="Uppercase titles" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <TextBlock Text="// ICONS" Style="{StaticResource D.Section}" />
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="S"
+                                                         IsChecked="{Binding IconSize, Converter={StaticResource Eq}, ConverterParameter=32}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="M"
+                                                         IsChecked="{Binding IconSize, Converter={StaticResource Eq}, ConverterParameter=40}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="L"
+                                                         IsChecked="{Binding IconSize, Converter={StaticResource Eq}, ConverterParameter=48}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="XL"
+                                                         IsChecked="{Binding IconSize, Converter={StaticResource Eq}, ConverterParameter=56}" />
+                                        </StackPanel>
+                                        <TextBlock Text="Icon size" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                                  VerticalAlignment="Center" IsChecked="{Binding ShowIconLabels}" />
+                                        <StackPanel>
+                                            <TextBlock Text="Show icon labels" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="label color adapts to the pad color" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Button Style="{StaticResource D.Button}" Content="RESET APPEARANCE"
+                                        HorizontalAlignment="Left" Margin="0,18,0,0" Click="ResetAppearance_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
+    </Border>
 </Window>

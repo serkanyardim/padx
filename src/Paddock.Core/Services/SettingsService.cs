@@ -50,7 +50,11 @@ public class SettingsService
             var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
 
             if (loaded is not null)
+            {
+                loaded.Appearance ??= new PadAppearance();
+                loaded.Appearance.Normalize();
                 return loaded;
+            }
 
             Log.Warn($"settings.json deserialized to null; starting from defaults ({_settingsPath}).");
         }

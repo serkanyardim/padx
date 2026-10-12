@@ -3,7 +3,7 @@ namespace Paddock.Core.Models;
 public class PaddockModel
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
-    public string Title { get; set; } = "New Paddock";
+    public string Title { get; set; } = "New Pad";
     public TitleVisibility TitleVisibility { get; set; } = TitleVisibility.Hover;
     public double X { get; set; }
     public double Y { get; set; }

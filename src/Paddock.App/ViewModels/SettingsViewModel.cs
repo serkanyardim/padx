@@ -1,77 +1,282 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Paddock.App.Helpers;
+using Paddock.Core.Models;
 using Paddock.Core.Services;
 
 namespace Paddock.App.ViewModels;
 
+/// <summary>
+/// Backs the settings window. Appearance changes are applied to the live pads
+/// immediately; writing settings.json is debounced so dragging a slider does
+/// not rewrite the file on every tick.
+/// </summary>
 public class SettingsViewModel : INotifyPropertyChanged
 {
+    private static readonly TimeSpan SaveDelay = TimeSpan.FromMilliseconds(400);
+
+    /// <summary>Everything the live preview binds to, refreshed on any appearance change.</summary>
+    private static readonly string[] PreviewProperties =
+    [
+        nameof(PreviewBackground), nameof(PreviewBorderBrush), nameof(PreviewBorderThickness),
+        nameof(PreviewCornerRadius), nameof(PreviewTitleBarBrush), nameof(PreviewTitleBarCornerRadius),
+        nameof(PreviewTitleBrush), nameof(PreviewTitleFont), nameof(PreviewTitleAlignment),
+        nameof(PreviewTitle), nameof(PreviewLabelBrush), nameof(PreviewLabelVisibility),
+        nameof(PreviewIconSize), nameof(PreviewCellWidth),
+    ];
+
     private readonly SettingsService _settings;
+    private readonly DispatcherTimer _saveTimer;
+    private string _hotkeyStatus = string.Empty;
 
     public SettingsViewModel(SettingsService settings)
     {
         _settings = settings;
+        _saveTimer = new DispatcherTimer { Interval = SaveDelay };
+        _saveTimer.Tick += (_, _) => FlushSave();
     }
+
+    private static App CurrentApp => (App)Application.Current;
+
+    private AppSettings S => _settings.Settings;
+
+    private PadAppearance A => _settings.Settings.Appearance;
+
+    public string Version => typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?";
+
+    // ===== General =====
 
     public bool StartWithWindows
     {
-        get => _settings.Settings.StartWithWindows;
+        get => S.StartWithWindows;
         set
         {
-            _settings.Settings.StartWithWindows = value;
-            _settings.Save();
-            ((App)Application.Current).StartupManager.SetStartupEnabled(value);
-            OnPropertyChanged();
+            S.StartWithWindows = value;
+            CurrentApp.StartupManager.SetStartupEnabled(value);
+            Changed();
         }
-    }
-
-    public string GlobalTheme
-    {
-        get => _settings.Settings.GlobalTheme;
-        set
-        {
-            _settings.Settings.GlobalTheme = value;
-            _settings.Save();
-            ((App)Application.Current).ApplyTheme(value);
-            OnPropertyChanged();
-        }
-    }
-
-    public bool QuickHideEnabled
-    {
-        get => _settings.Settings.QuickHideEnabled;
-        set { _settings.Settings.QuickHideEnabled = value; _settings.Save(); OnPropertyChanged(); }
     }
 
     public bool SnapEnabled
     {
-        get => _settings.Settings.SnapEnabled;
-        set { _settings.Settings.SnapEnabled = value; _settings.Save(); OnPropertyChanged(); }
+        get => S.SnapEnabled;
+        set { S.SnapEnabled = value; Changed(); }
     }
 
     public double IntelligentSpacing
     {
-        get => _settings.Settings.IntelligentSpacing;
-        set { _settings.Settings.IntelligentSpacing = value; _settings.Save(); OnPropertyChanged(); }
-    }
-
-    public double DefaultOpacity
-    {
-        get => _settings.Settings.DefaultOpacity;
-        set { _settings.Settings.DefaultOpacity = value; _settings.Save(); OnPropertyChanged(); }
-    }
-
-    public double DefaultCornerRadius
-    {
-        get => _settings.Settings.DefaultCornerRadius;
-        set { _settings.Settings.DefaultCornerRadius = value; _settings.Save(); OnPropertyChanged(); }
+        get => S.IntelligentSpacing;
+        set { S.IntelligentSpacing = Math.Round(value); Changed(); }
     }
 
     public string RollUpExpandMode
     {
-        get => _settings.Settings.RollUpExpandMode;
-        set { _settings.Settings.RollUpExpandMode = value; _settings.Save(); OnPropertyChanged(); }
+        get => S.RollUpExpandMode;
+        set { S.RollUpExpandMode = value; Changed(); }
+    }
+
+    // ===== Shortcuts =====
+
+    public string ToggleHotkey
+    {
+        get => S.QuickHideHotkey;
+        set { S.QuickHideHotkey = value; S.QuickHideEnabled = true; HotkeysChanged(); }
+    }
+
+    public string NewPadHotkey
+    {
+        get => S.NewPadHotkey;
+        set { S.NewPadHotkey = value; HotkeysChanged(); }
+    }
+
+    public string RollUpAllHotkey
+    {
+        get => S.RollUpAllHotkey;
+        set { S.RollUpAllHotkey = value; HotkeysChanged(); }
+    }
+
+    public string SettingsHotkey
+    {
+        get => S.SettingsHotkey;
+        set { S.SettingsHotkey = value; HotkeysChanged(); }
+    }
+
+    /// <summary>Warning shown when a shortcut is already owned by another app.</summary>
+    public string HotkeyStatus
+    {
+        get => _hotkeyStatus;
+        private set { _hotkeyStatus = value; OnPropertyChanged(); }
+    }
+
+    // ===== Appearance: pad =====
+
+    public string PadColor
+    {
+        get => A.PadColor;
+        set { A.PadColor = value; AppearanceChanged(); }
+    }
+
+    public double PadOpacity
+    {
+        get => A.PadOpacity;
+        set { A.PadOpacity = Math.Round(value, 2); AppearanceChanged(); }
+    }
+
+    public double CornerRadius
+    {
+        get => A.CornerRadius;
+        set { A.CornerRadius = Math.Round(value); AppearanceChanged(); }
+    }
+
+    public string BorderColor
+    {
+        get => A.BorderColor;
+        set { A.BorderColor = value; AppearanceChanged(); }
+    }
+
+    public double BorderThickness
+    {
+        get => A.BorderThickness;
+        set { A.BorderThickness = Math.Clamp(Math.Round(value), 0, PadAppearance.MaxBorderThickness); AppearanceChanged(); }
+    }
+
+    // ===== Appearance: title bar =====
+
+    public string TitleBarColor
+    {
+        get => A.TitleBarColor;
+        set { A.TitleBarColor = value; AppearanceChanged(); }
+    }
+
+    public double TitleBarOpacity
+    {
+        get => A.TitleBarOpacity;
+        set { A.TitleBarOpacity = Math.Round(value, 2); AppearanceChanged(); }
+    }
+
+    public string TitleTextColor
+    {
+        get => A.TitleTextColor;
+        set { A.TitleTextColor = value; AppearanceChanged(); }
+    }
+
+    public double TitleFontSize
+    {
+        get => A.TitleFontSize;
+        set { A.TitleFontSize = Math.Round(value); AppearanceChanged(); }
+    }
+
+    public TitleAlignment TitleAlignment
+    {
+        get => A.TitleAlignment;
+        set { A.TitleAlignment = value; AppearanceChanged(); }
+    }
+
+    public string TitleFont
+    {
+        get => A.TitleFont;
+        set { A.TitleFont = value; AppearanceChanged(); }
+    }
+
+    public bool TitleUppercase
+    {
+        get => A.TitleUppercase;
+        set { A.TitleUppercase = value; AppearanceChanged(); }
+    }
+
+    // ===== Appearance: icons =====
+
+    public double IconSize
+    {
+        get => A.IconSize;
+        set { A.IconSize = value; AppearanceChanged(); }
+    }
+
+    public bool ShowIconLabels
+    {
+        get => A.ShowIconLabels;
+        set { A.ShowIconLabels = value; AppearanceChanged(); }
+    }
+
+    /// <summary>Puts every appearance value back to its default (pad colours are kept).</summary>
+    public void ResetAppearance()
+    {
+        S.Appearance = new PadAppearance();
+        AppearanceChanged();
+        OnPropertyChanged(string.Empty);
+    }
+
+    // ===== Live preview =====
+
+    public Brush PreviewBackground => PadVisuals.Solid(A.PadColor, A.PadOpacity, Colors.Black);
+    public Brush PreviewBorderBrush => PadVisuals.Solid(A.BorderColor, 1, Colors.Transparent);
+    public Thickness PreviewBorderThickness => new(A.BorderThickness);
+    public System.Windows.CornerRadius PreviewCornerRadius => new(A.CornerRadius);
+    public Brush PreviewTitleBarBrush => PadVisuals.Solid(A.TitleBarColor, A.TitleBarOpacity, Colors.Black);
+
+    public System.Windows.CornerRadius PreviewTitleBarCornerRadius
+    {
+        get
+        {
+            var inner = Math.Max(0, A.CornerRadius - A.BorderThickness);
+            return new System.Windows.CornerRadius(inner, inner, 0, 0);
+        }
+    }
+
+    public Brush PreviewTitleBrush => PadVisuals.Solid(A.TitleTextColor, 1, Colors.White);
+    public FontFamily PreviewTitleFont => PadVisuals.Font(A.TitleFont);
+    public HorizontalAlignment PreviewTitleAlignment => PadVisuals.Align(A.TitleAlignment);
+    public string PreviewTitle => A.TitleUppercase ? "WORKSPACE" : "Workspace";
+    public Brush PreviewLabelBrush => PadVisuals.LabelBrushFor(A.PadColor);
+    public Visibility PreviewLabelVisibility => A.ShowIconLabels ? Visibility.Visible : Visibility.Collapsed;
+    public double PreviewIconSize => A.IconSize;
+    public double PreviewCellWidth => A.IconSize + 32;
+
+    // ===== Plumbing =====
+
+    /// <summary>Saves (debounced) and notifies the caller's binding.</summary>
+    private void Changed([CallerMemberName] string? name = null)
+    {
+        ScheduleSave();
+        OnPropertyChanged(name);
+    }
+
+    private void AppearanceChanged([CallerMemberName] string? name = null)
+    {
+        CurrentApp.Host?.ApplyAppearance();
+        foreach (var property in PreviewProperties)
+            OnPropertyChanged(property);
+
+        Changed(name);
+    }
+
+    private void HotkeysChanged([CallerMemberName] string? name = null)
+    {
+        var failed = CurrentApp.RegisterHotkeys();
+        HotkeyStatus = failed.Count == 0
+            ? string.Empty
+            : $"! In use by another app: {string.Join(", ", failed)}";
+
+        Changed(name);
+    }
+
+    private void ScheduleSave()
+    {
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    /// <summary>Writes any pending change now — called on the timer and when the window closes.</summary>
+    public void FlushSave()
+    {
+        if (!_saveTimer.IsEnabled)
+            return;
+
+        _saveTimer.Stop();
+        _settings.Save();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

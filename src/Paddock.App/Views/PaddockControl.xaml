@@ -33,8 +33,10 @@
 
     <!-- Context menu for paddock management -->
     <UserControl.ContextMenu>
-        <ContextMenu>
+        <ContextMenu Opened="ContextMenu_Opened">
             <MenuItem Header="Rename" Click="ContextMenu_Rename" />
+            <!-- Filled in code-behind from PadPalette -->
+            <MenuItem x:Name="ColorMenu" Header="Color" />
             <MenuItem Header="Fill from Desktop">
                 <MenuItem Header="All items" Tag="All" Click="ContextMenu_FillFromDesktop" />
                 <Separator />
@@ -76,7 +78,7 @@
             <MenuItem Header="Exclude from Quick Hide" IsCheckable="True"
                       IsChecked="{Binding ExcludeFromQuickHide}" />
             <Separator />
-            <MenuItem Header="Remove Paddock (icons return to desktop)"
+            <MenuItem Header="Remove Pad (icons return to desktop)"
                       Click="ContextMenu_Remove" />
         </ContextMenu>
     </UserControl.ContextMenu>
@@ -89,7 +91,7 @@
 
         <Grid>
             <!-- Icon grid (hidden when rolled up) -->
-            <ScrollViewer Margin="6,32,6,6"
+            <ScrollViewer Margin="6,36,4,6"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           Background="Transparent"
@@ -102,9 +104,10 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Width="76" Height="84"
+                            <Border Width="{Binding DataContext.IconCellWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    Height="{Binding DataContext.IconCellHeight, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                     Margin="2"
-                                    CornerRadius="6"
+                                    CornerRadius="3"
                                     MouseLeftButtonDown="Icon_MouseLeftButtonDown"
                                     MouseRightButtonUp="Icon_RightClick"
                                     MouseMove="Icon_MouseMove"
@@ -125,13 +128,15 @@
 
                                 <StackPanel>
                                     <Image Source="{Binding IconImage}"
-                                           Width="44" Height="44"
+                                           Width="{Binding DataContext.IconSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                           Height="{Binding DataContext.IconSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                            HorizontalAlignment="Center"
-                                           Margin="0,8,0,4"
+                                           Margin="0,7,0,4"
                                            RenderOptions.BitmapScalingMode="HighQuality" />
 
                                     <TextBlock Text="{Binding DisplayName}"
-                                               Foreground="{DynamicResource PaddockIconText}"
+                                               Visibility="{Binding DataContext.IconLabelVisibility, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                               Foreground="{Binding DataContext.IconTextBrush, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                FontFamily="Segoe UI Variable, Segoe UI"
                                                FontSize="10.5"
                                                FontWeight="Regular"
@@ -150,10 +155,10 @@
             <!-- Empty-state hint, so a new paddock explains itself -->
             <TextBlock Text="Drag desktop icons here&#x0a;or right-click to fill from the desktop"
                        Visibility="{Binding EmptyHintVisibility}"
-                       Foreground="{DynamicResource PaddockTitleText}"
-                       FontFamily="Segoe UI Variable, Segoe UI"
-                       FontSize="11.5"
-                       Opacity="0.7"
+                       Foreground="{Binding IconTextBrush}"
+                       FontFamily="{StaticResource D.Mono}"
+                       FontSize="10.5"
+                       Opacity="0.55"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Margin="16,32,16,16"
@@ -165,7 +170,8 @@
             <Border x:Name="TitleArea"
                     Height="32"
                     VerticalAlignment="Top"
-                    Background="Transparent"
+                    Background="{Binding TitleBarBrush}"
+                    CornerRadius="{Binding TitleBarCornerRadius}"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown"
                     MouseMove="TitleBar_MouseMove"
                     MouseLeftButtonUp="TitleBar_MouseLeftButtonUp"
@@ -174,23 +180,22 @@
                 <Grid>
                     <!-- Title text (visibility controlled by mode) -->
                     <TextBlock x:Name="TitleText"
-                               Text="{Binding Title}"
-                               Foreground="{DynamicResource PaddockTitleText}"
-                               FontFamily="Segoe UI Variable, Segoe UI"
-                               FontSize="12"
+                               Text="{Binding TitleDisplay}"
+                               Foreground="{Binding TitleTextBrush}"
+                               FontFamily="{Binding TitleFontFamily}"
+                               FontSize="{Binding TitleFontSize}"
                                FontWeight="Medium"
-                               Margin="14,0,36,0"
+                               Margin="{Binding TitleMargin}"
                                VerticalAlignment="Center"
-                               HorizontalAlignment="Left"
+                               HorizontalAlignment="{Binding TitleHorizontalAlignment}"
                                TextTrimming="CharacterEllipsis"
                                Visibility="Visible" />
 
                     <!-- Inline rename textbox (shown during rename) -->
                     <TextBox x:Name="RenameBox"
                              Text="{Binding RenameText, UpdateSourceTrigger=PropertyChanged}"
-                             FontFamily="Segoe UI Variable, Segoe UI"
-                             FontSize="12"
-                             Margin="10,4,40,4"
+                             Style="{StaticResource D.Field}"
+                             Margin="8,4,36,4"
                              VerticalAlignment="Center"
                              Visibility="Collapsed"
                              KeyDown="RenameBox_KeyDown"
@@ -200,14 +205,14 @@
 
             <!-- Hover-only chrome (close button, resize grip dots) -->
             <Grid x:Name="HoverChrome" Opacity="0">
-                <Border Width="20" Height="20"
-                        CornerRadius="10"
+                <Border Width="18" Height="18"
+                        CornerRadius="2"
                         Background="{DynamicResource PaddockCloseBackground}"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Margin="0,6,8,0"
                         Cursor="Hand"
-                        ToolTip="Remove paddock — its icons go back to the desktop"
+                        ToolTip="Remove pad — its icons go back to the desktop"
                         MouseLeftButtonDown="CloseButton_Click">
                     <TextBlock Text="&#xD7;"
                                FontSize="14"

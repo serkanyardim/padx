@@ -7,10 +7,19 @@ public class AppSettings
     public string GlobalTheme { get; set; } = "dark";
     public bool QuickHideEnabled { get; set; } = true;
     public string QuickHideHotkey { get; set; } = "Ctrl+F12";
+
+    /// <summary>Global shortcut that starts drawing a new pad. Empty disables it.</summary>
+    public string NewPadHotkey { get; set; } = "Ctrl+Alt+N";
+
+    /// <summary>Global shortcut that rolls every pad up, or expands them all again.</summary>
+    public string RollUpAllHotkey { get; set; } = "Ctrl+Alt+R";
+
+    /// <summary>Global shortcut that opens the settings window.</summary>
+    public string SettingsHotkey { get; set; } = "Ctrl+Alt+P";
+
     public bool SnapEnabled { get; set; } = true;
     public double IntelligentSpacing { get; set; } = 12;
-    public double DefaultOpacity { get; set; } = 0.88;
-    public double DefaultCornerRadius { get; set; } = 16;
+    public PadAppearance Appearance { get; set; } = new();
     public string RollUpExpandMode { get; set; } = "click";
     public string ActiveCorral { get; set; } = "default";
     public Dictionary<string, CorralModel> Corrals { get; set; } = new()

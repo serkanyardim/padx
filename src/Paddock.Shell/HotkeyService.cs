@@ -52,6 +52,17 @@ public sealed class HotkeyService : IDisposable
         return true;
     }
 
+    /// <summary>Releases every registered hotkey, e.g. before re-registering a changed set.</summary>
+    public void UnregisterAll()
+    {
+        foreach (var id in _handlers.Keys)
+        {
+            NativeMethods.UnregisterHotKey(_source.Handle, id);
+        }
+
+        _handlers.Clear();
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -59,12 +70,7 @@ public sealed class HotkeyService : IDisposable
 
         _disposed = true;
 
-        foreach (var id in _handlers.Keys)
-        {
-            NativeMethods.UnregisterHotKey(_source.Handle, id);
-        }
-
-        _handlers.Clear();
+        UnregisterAll();
         _source.RemoveHook(WndProc);
         _source.Dispose();
     }
@@ -81,6 +87,8 @@ public sealed class HotkeyService : IDisposable
     }
 
     /// <summary>Parses "Ctrl+Alt+F12" into Win32 modifier flags and a virtual key.</summary>
+    public static bool IsValid(string hotkey) => TryParse(hotkey, out _, out _);
+
     internal static bool TryParse(string hotkey, out uint modifiers, out uint virtualKey)
     {
         modifiers = 0;

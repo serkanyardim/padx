@@ -38,18 +38,43 @@ public class PaddockManagerTests : IDisposable
     }
 
     [Fact]
-    public void CreatePaddock_InheritsDefaultOpacityAndCornerRadius()
+    public void CreatePaddock_FollowsGlobalPadColor()
     {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"paddock_test_{Guid.NewGuid():N}.json");
-        var settings = new SettingsService(tempPath);
-        settings.Settings.DefaultOpacity = 0.75;
-        settings.Settings.DefaultCornerRadius = 20;
-        var manager = new PaddockManager(settings);
+        var manager = CreateManager();
+        var appearance = new PadAppearance { PadColor = "#112233" };
 
         var paddock = manager.CreatePaddock("Test", 0, 0, 300, 250);
 
-        Assert.Equal(0.75, paddock.Style.Opacity);
-        Assert.Equal(20, paddock.Style.CornerRadius);
+        Assert.Null(paddock.Style.Color);
+        Assert.Equal("#112233", paddock.Style.EffectiveColor(appearance));
+    }
+
+    [Fact]
+    public void PaddockStyle_ColorOverridesGlobalPadColor()
+    {
+        var appearance = new PadAppearance { PadColor = "#112233" };
+        var style = new PaddockStyle { Color = "#AABBCC" };
+
+        Assert.Equal("#AABBCC", style.EffectiveColor(appearance));
+    }
+
+    [Fact]
+    public void PadAppearance_NormalizeClampsHandEditedValues()
+    {
+        var appearance = new PadAppearance
+        {
+            PadOpacity = 1.7,
+            BorderThickness = 9,
+            TitleFontSize = 2,
+            IconSize = 500,
+        };
+
+        appearance.Normalize();
+
+        Assert.Equal(1, appearance.PadOpacity);
+        Assert.Equal(PadAppearance.MaxBorderThickness, appearance.BorderThickness);
+        Assert.Equal(8, appearance.TitleFontSize);
+        Assert.Equal(64, appearance.IconSize);
     }
 
     [Fact]

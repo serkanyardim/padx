@@ -1,0 +1,65 @@
+<UserControl x:Class="Paddock.App.Views.Controls.ColorField"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:Paddock.App.Helpers">
+
+    <StackPanel Orientation="Horizontal">
+        <!-- Swatch: shows the colour, opens the palette -->
+        <Button x:Name="SwatchButton" Click="Swatch_Click" Cursor="Hand"
+                ToolTip="Pick from palette" Margin="0,0,6,0">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Width="22" Height="22"
+                            BorderBrush="{StaticResource D.LineStrong}" BorderThickness="1"
+                            Background="{StaticResource D.Bg}" Padding="2">
+                        <Border x:Name="Fill" Background="{Binding SwatchBrush, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
+
+        <TextBox x:Name="HexBox" Width="80" Style="{StaticResource D.Field}"
+                 CharacterCasing="Upper" MaxLength="9"
+                 KeyDown="HexBox_KeyDown" LostKeyboardFocus="HexBox_LostKeyboardFocus" />
+
+        <Popup x:Name="PalettePopup" PlacementTarget="{Binding ElementName=SwatchButton}"
+               Placement="Bottom" VerticalOffset="4" StaysOpen="False"
+               AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Background="{StaticResource D.Panel}" BorderBrush="{StaticResource D.LineStrong}"
+                    BorderThickness="1" Padding="6">
+                <ItemsControl ItemsSource="{x:Static helpers:PadPalette.AllColors}" Width="208">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Click="PaletteColor_Click" Tag="{Binding Hex}" Cursor="Hand"
+                                    ToolTip="{Binding Name}" Margin="1">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Width="24" Height="24" Padding="2"
+                                                BorderBrush="Transparent" BorderThickness="1">
+                                            <Border Background="{Binding Brush}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Popup>
+    </StackPanel>
+</UserControl>

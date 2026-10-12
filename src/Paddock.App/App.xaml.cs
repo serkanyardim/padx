@@ -15,6 +15,7 @@ public partial class App : Application
     private System.Windows.Forms.NotifyIcon? _trayIcon;
     private HotkeyService? _hotkeys;
     private System.Threading.Mutex? _instanceMutex;
+    private Views.SettingsWindow? _settingsWindow;
 
     public SettingsService Settings { get; private set; } = null!;
     public PaddockManager PaddockManager { get; private set; } = null!;
@@ -138,8 +139,13 @@ public partial class App : Application
 
         var dictionary = new ResourceDictionary { Source = new Uri(path, UriKind.Relative) };
 
-        Resources.MergedDictionaries.Clear();
-        Resources.MergedDictionaries.Add(dictionary);
+        // Only the theme is swapped; the shared styles stay merged.
+        var merged = Resources.MergedDictionaries;
+        var current = merged.FirstOrDefault(d => d.Source?.OriginalString.Contains("/Themes/") == true);
+        if (current is not null)
+            merged.Remove(current);
+
+        merged.Insert(0, dictionary);
     }
 
     /// <summary>
@@ -168,6 +174,9 @@ public partial class App : Application
         var menu = new System.Windows.Forms.ContextMenuStrip
         {
             ImageScalingSize = new System.Drawing.Size(iconSize, iconSize),
+            Renderer = new Helpers.TrayMenuRenderer(),
+            Font = new Font("Segoe UI", 9.5f),
+            ShowImageMargin = true,
         };
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
         menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
@@ -179,29 +188,58 @@ public partial class App : Application
         _trayIcon.DoubleClick += (_, _) => TogglePaddocks();
     }
 
-    /// <summary>
-    /// Registers the quick-hide hotkey. Paddocks live behind other windows and
-    /// pass clicks straight through to the desktop, so a keyboard shortcut (and
-    /// the tray icon) is how you toggle them.
-    /// </summary>
     private void InitializeHotkeys()
     {
-        if (!Settings.Settings.QuickHideEnabled)
-            return;
-
         _hotkeys = new HotkeyService();
-
-        if (!_hotkeys.Register(Settings.Settings.QuickHideHotkey, TogglePaddocks))
-        {
-            Log.Warn($"Quick-hide hotkey '{Settings.Settings.QuickHideHotkey}' could not be registered.");
-        }
+        RegisterHotkeys();
     }
+
+    /// <summary>
+    /// (Re)registers every global shortcut from settings. Pads live behind other
+    /// windows, so these are the way to reach Paddock from anywhere. Returns the
+    /// shortcuts that could not be registered (typically: another app owns them).
+    /// </summary>
+    internal IReadOnlyList<string> RegisterHotkeys()
+    {
+        var failed = new List<string>();
+        if (_hotkeys is null)
+            return failed;
+
+        _hotkeys.UnregisterAll();
+
+        var settings = Settings.Settings;
+        var bindings = new List<(string Hotkey, Action Action)>
+        {
+            (settings.NewPadHotkey, CreateNewPaddock),
+            (settings.RollUpAllHotkey, () => Host?.ToggleRollUpAll()),
+            (settings.SettingsHotkey, OpenSettings),
+        };
+
+        if (settings.QuickHideEnabled)
+            bindings.Insert(0, (settings.QuickHideHotkey, TogglePaddocks));
+
+        foreach (var (hotkey, action) in bindings)
+        {
+            if (string.IsNullOrWhiteSpace(hotkey))
+                continue;
+
+            if (!_hotkeys.Register(hotkey, action))
+                failed.Add(hotkey);
+        }
+
+        return failed;
+    }
+
+    /// <summary>Releases all shortcuts while one is being recorded in Settings.</summary>
+    internal void SuspendHotkeys() => _hotkeys?.UnregisterAll();
+
+    internal void ResumeHotkeys() => RegisterHotkeys();
 
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
 
     private void TogglePaddocks() => Host?.ToggleQuickHide();
 
-    private void RestoreAllIcons()
+    internal void RestoreAllIcons()
     {
         if (Host is null)
             return;
@@ -227,14 +265,24 @@ public partial class App : Application
             MessageBoxImage.Information);
     }
 
+    /// <summary>Shows the settings window, or brings the open one to the front.</summary>
     private void OpenSettings()
     {
-        var settings = new Views.SettingsWindow();
-        settings.ShowDialog();
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new Views.SettingsWindow();
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+            _settingsWindow.Show();
+        }
+
+        if (_settingsWindow.WindowState == WindowState.Minimized)
+            _settingsWindow.WindowState = WindowState.Normal;
+
+        _settingsWindow.Activate();
     }
 
     /// <summary>Opens the folder holding settings.json and paddock.log.</summary>
-    private static void OpenSettingsFolder()
+    internal static void OpenSettingsFolder()
     {
         try
         {

@@ -35,7 +35,7 @@ public class PaddockManager
 
     public PaddockModel CreatePaddock(string title, double x, double y, double width, double height)
     {
-        var settings = _settingsService.Settings;
+        // No style overrides: a new pad follows the global appearance.
         var paddock = new PaddockModel
         {
             Title = title,
@@ -43,11 +43,6 @@ public class PaddockManager
             Y = y,
             Width = width,
             Height = height,
-            Style = new PaddockStyle
-            {
-                Opacity = settings.DefaultOpacity,
-                CornerRadius = settings.DefaultCornerRadius
-            }
         };
 
         _settingsService.GetActiveCorral().Paddocks.Add(paddock);

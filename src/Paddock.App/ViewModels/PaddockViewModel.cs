@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using Paddock.App.Helpers;
 using Paddock.Core.Models;
 using Paddock.Core.Services;
 
@@ -13,23 +14,28 @@ public class PaddockViewModel : INotifyPropertyChanged
     /// <summary>Height of the title strip, and of a rolled-up paddock.</summary>
     public const double TitleBarHeight = 32;
 
-    private static readonly Color FallbackBackground = Color.FromRgb(0x1C, 0x1C, 0x1E);
+    private static readonly Color FallbackBackground = Color.FromRgb(0x12, 0x16, 0x1C);
 
     private readonly PaddockModel _model;
     private readonly PaddockManager _manager;
+    private readonly Func<PadAppearance> _appearance;
     private bool _isRenaming;
     private string _renameText;
 
     // Frozen brushes, rebuilt only when the style changes.
     private Brush? _backgroundBrush;
     private Brush? _borderBrush;
+    private Brush? _titleBarBrush;
+    private Brush? _titleTextBrush;
+    private Brush? _iconTextBrush;
 
     public event Action? RemoveRequested;
 
-    public PaddockViewModel(PaddockModel model, PaddockManager manager)
+    public PaddockViewModel(PaddockModel model, PaddockManager manager, Func<PadAppearance> appearance)
     {
         _model = model;
         _manager = manager;
+        _appearance = appearance;
         _renameText = model.Title;
 
         RefreshIcons();
@@ -59,9 +65,13 @@ public class PaddockViewModel : INotifyPropertyChanged
         {
             _model.Title = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(TitleDisplay));
             _manager.SaveLayout();
         }
     }
+
+    /// <summary>The title as drawn, honouring the uppercase setting.</summary>
+    public string TitleDisplay => Appearance.TitleUppercase ? _model.Title.ToUpperInvariant() : _model.Title;
 
     public TitleVisibility TitleVisibility
     {
@@ -121,6 +131,7 @@ public class PaddockViewModel : INotifyPropertyChanged
             _model.IsRolledUp = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ContentVisibility));
+            OnPropertyChanged(nameof(TitleBarCornerRadius));
             OnPropertyChanged(nameof(DisplayHeight));
             OnPropertyChanged(nameof(EmptyHintVisibility));
             _manager.SaveLayout();
@@ -172,49 +183,73 @@ public class PaddockViewModel : INotifyPropertyChanged
     /// </summary>
     public Brush BackgroundBrush => _backgroundBrush ??= BuildBackgroundBrush();
 
-    public Brush BorderBrush => _borderBrush ??= BuildBorderBrush();
+    public Brush BorderBrush => _borderBrush ??= PadVisuals.Solid(Appearance.BorderColor, 1, Colors.Transparent);
 
-    public Thickness BorderThickness => new(_model.Style.BorderThickness);
+    public Thickness BorderThickness => new(Appearance.BorderThickness);
 
-    public CornerRadius CornerRadius => new(_model.Style.CornerRadius);
+    public CornerRadius CornerRadius => new(Appearance.CornerRadius);
 
-    public string BackgroundColor
+    public Brush TitleBarBrush => _titleBarBrush ??=
+        PadVisuals.Solid(Appearance.TitleBarColor, Appearance.TitleBarOpacity, Colors.Black);
+
+    /// <summary>
+    /// The title bar sits inside the edge, so its corners follow the inner
+    /// radius; only the top corners are rounded unless the pad is rolled up.
+    /// </summary>
+    public CornerRadius TitleBarCornerRadius
     {
-        get => _model.Style.BackgroundColor;
-        set
+        get
         {
-            _model.Style.BackgroundColor = value;
-            InvalidateBrushes();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(BackgroundBrush));
-            _manager.SaveLayout();
+            var inner = Math.Max(0, Appearance.CornerRadius - Appearance.BorderThickness);
+            return IsRolledUp ? new CornerRadius(inner) : new CornerRadius(inner, inner, 0, 0);
         }
     }
 
-    public double PaddockOpacity
+    public Brush TitleTextBrush => _titleTextBrush ??= PadVisuals.Solid(Appearance.TitleTextColor, 1, Colors.White);
+
+    public double TitleFontSize => Appearance.TitleFontSize;
+
+    public FontFamily TitleFontFamily => PadVisuals.Font(Appearance.TitleFont);
+
+    public HorizontalAlignment TitleHorizontalAlignment => PadVisuals.Align(Appearance.TitleAlignment);
+
+    /// <summary>Centred titles get equal margins so they sit truly in the middle.</summary>
+    public Thickness TitleMargin => Appearance.TitleAlignment == TitleAlignment.Left
+        ? new Thickness(12, 0, 36, 0)
+        : new Thickness(36, 0, 36, 0);
+
+    public double IconSize => Appearance.IconSize;
+
+    public double IconCellWidth => Appearance.IconSize + 32;
+
+    public double IconCellHeight => Appearance.ShowIconLabels ? Appearance.IconSize + 40 : Appearance.IconSize + 14;
+
+    public Visibility IconLabelVisibility => Appearance.ShowIconLabels ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Label colour picked for contrast against this pad's colour.</summary>
+    public Brush IconTextBrush => _iconTextBrush ??= PadVisuals.LabelBrushFor(EffectiveColor);
+
+    /// <summary>This pad's own colour, or null when it follows the global default.</summary>
+    public string? CustomColor => _model.Style.Color;
+
+    public string EffectiveColor => _model.Style.EffectiveColor(Appearance);
+
+    /// <summary>Gives the pad its own colour, or null to follow the default again.</summary>
+    public void SetColor(string? hex)
     {
-        get => _model.Style.Opacity;
-        set
-        {
-            _model.Style.Opacity = value;
-            InvalidateBrushes();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(BackgroundBrush));
-            _manager.SaveLayout();
-        }
+        _model.Style.Color = PadVisuals.Normalize(hex);
+        _manager.SaveLayout();
+        ApplyAppearance();
     }
 
-    public double PaddockCornerRadius
+    /// <summary>Re-reads the global appearance after it changed in Settings.</summary>
+    public void ApplyAppearance()
     {
-        get => _model.Style.CornerRadius;
-        set
-        {
-            _model.Style.CornerRadius = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(CornerRadius));
-            _manager.SaveLayout();
-        }
+        InvalidateBrushes();
+        OnPropertyChanged(string.Empty);
     }
+
+    private PadAppearance Appearance => _appearance();
 
     // --- Icons ---
     public ObservableCollection<IconViewModel> Icons { get; } = new();
@@ -451,41 +486,16 @@ public class PaddockViewModel : INotifyPropertyChanged
     }
 
     private Brush BuildBackgroundBrush()
-    {
-        var colour = ParseColour(_model.Style.BackgroundColor, FallbackBackground);
-        var alpha = (byte)Math.Clamp(_model.Style.Opacity * 255, 0, 255);
-        var brush = new SolidColorBrush(Color.FromArgb(alpha, colour.R, colour.G, colour.B));
-        brush.Freeze();
-        return brush;
-    }
-
-    private Brush BuildBorderBrush()
-    {
-        var brush = new SolidColorBrush(ParseColour(_model.Style.BorderColor, Colors.Transparent));
-        brush.Freeze();
-        return brush;
-    }
+        => PadVisuals.Solid(EffectiveColor, Appearance.PadOpacity, FallbackBackground);
 
     /// <summary>Forces the cached brushes to be rebuilt on next use.</summary>
     private void InvalidateBrushes()
     {
         _backgroundBrush = null;
         _borderBrush = null;
-    }
-
-    private static Color ParseColour(string value, Color fallback)
-    {
-        try
-        {
-            if (ColorConverter.ConvertFromString(value) is Color colour)
-                return colour;
-        }
-        catch (FormatException)
-        {
-            // Fall through to the default below.
-        }
-
-        return fallback;
+        _titleBarBrush = null;
+        _titleTextBrush = null;
+        _iconTextBrush = null;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

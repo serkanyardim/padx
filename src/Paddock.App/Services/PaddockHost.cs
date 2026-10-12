@@ -89,7 +89,7 @@ internal sealed class PaddockHost : IDisposable
     internal void CreatePaddock(Rect screenArea)
     {
         var model = _app.PaddockManager.CreatePaddock(
-            title: "New Paddock",
+            title: "New Pad",
             x: screenArea.X,
             y: screenArea.Y,
             width: screenArea.Width,
@@ -159,6 +159,27 @@ internal sealed class PaddockHost : IDisposable
             _zOrderTimer.Start();
         else if (!needed && _zOrderTimer.IsEnabled)
             _zOrderTimer.Stop();
+    }
+
+    /// <summary>Rolls every pad up, or — if they already all are — expands them all.</summary>
+    internal void ToggleRollUpAll()
+    {
+        var rollUp = _windows.Any(w => !w.ViewModel.IsRolledUp);
+
+        using (_app.PaddockManager.DeferSave())
+        {
+            foreach (var window in _windows)
+                window.ViewModel.IsRolledUp = rollUp;
+        }
+    }
+
+    // --- Appearance ---
+
+    /// <summary>Redraws every pad after the global appearance changed.</summary>
+    internal void ApplyAppearance()
+    {
+        foreach (var window in _windows)
+            window.ViewModel.ApplyAppearance();
     }
 
     // --- Contents ---
@@ -239,7 +260,7 @@ internal sealed class PaddockHost : IDisposable
 
     private PaddockWindow CreateWindow(PaddockModel model)
     {
-        var viewModel = new PaddockViewModel(model, _app.PaddockManager);
+        var viewModel = new PaddockViewModel(model, _app.PaddockManager, () => _app.Settings.Settings.Appearance);
         var window = new PaddockWindow(viewModel, _app.ShellHookService);
 
         viewModel.RemoveRequested += () => RemovePaddock(window);
