@@ -259,9 +259,9 @@ public partial class App : Application
             _configsWindow.Closed += (_, _) => _configsWindow = null;
             _configsWindow.Show();
         }
-        else if (saving)
+        else
         {
-            _configsWindow.PrepareToSave();
+            _configsWindow.SwitchTo(saving);
         }
 
         _configsWindow.Activate();

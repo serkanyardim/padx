@@ -14,7 +14,7 @@ public partial class ConfigsWindow : Window
         public Visibility StarVisibility => IsStartup ? Visibility.Visible : Visibility.Hidden;
     }
 
-    private readonly bool _saving;
+    private bool _saving;
     private bool _refreshing;
 
     /// <param name="saving">
@@ -23,8 +23,8 @@ public partial class ConfigsWindow : Window
     /// </param>
     public ConfigsWindow(bool saving = false)
     {
-        _saving = saving;
         InitializeComponent();
+        SetMode(saving);
 
         NameBox.Text = Core.Services.ConfigStore.DefaultName(DateTime.Now);
         Refresh();
@@ -43,9 +43,28 @@ public partial class ConfigsWindow : Window
         };
     }
 
-    /// <summary>Switches an already open window into save mode.</summary>
-    public void PrepareToSave()
+    /// <summary>
+    /// Save mode shows the name box and hides Load/Startup/Delete; load mode
+    /// the other way round — one job per window, nothing to confuse.
+    /// </summary>
+    private void SetMode(bool saving)
     {
+        _saving = saving;
+        SavePanel.Visibility = saving ? Visibility.Visible : Visibility.Collapsed;
+        ActionBar.Visibility = saving ? Visibility.Collapsed : Visibility.Visible;
+        ModeTitle.Text = saving ? "  // SAVE CONFIG" : "  // LOAD CONFIG";
+    }
+
+    /// <summary>Switches an already open window into save or load mode.</summary>
+    public void SwitchTo(bool saving)
+    {
+        SetMode(saving);
+        if (!saving)
+        {
+            List.Focus();
+            return;
+        }
+
         NameBox.Text = Core.Services.ConfigStore.DefaultName(DateTime.Now);
         NameBox.Focus();
         NameBox.SelectAll();
