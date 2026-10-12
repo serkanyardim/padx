@@ -70,6 +70,13 @@ public class IconCategorizerTests
         => Assert.Equal(AutoCategory.Folders, Shortcut("UT Şablonları", @"M:\dys\04. Şablonlar\UT Şablonları"));
 
     [Fact]
+    public void SystemCategory_SortsFirst()
+    {
+        Assert.Equal(AutoCategory.System, Enum.GetValues<AutoCategory>().Min());
+        Assert.Equal("System", IconCategorizer.Title(AutoCategory.System));
+    }
+
+    [Fact]
     public void UnknownApp_IsApps()
         => Assert.Equal(AutoCategory.Apps, Shortcut("Acme Tool", @"C:\Program Files\Acme\acmetool.exe"));
 

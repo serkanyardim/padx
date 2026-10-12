@@ -27,6 +27,7 @@ internal sealed class AutoOrganizer
     /// <summary>Colour per category for <see cref="AutoColorMode.ByCategory"/>: dark, distinct hues.</summary>
     private static readonly Dictionary<AutoCategory, string> CategoryColors = new()
     {
+        [AutoCategory.System] = "#1E2A3A",
         [AutoCategory.Folders] = "#4A3B12",
         [AutoCategory.Documents] = "#10233F",
         [AutoCategory.Media] = "#2E1A3D",
@@ -298,7 +299,7 @@ internal sealed class AutoOrganizer
                 items.Add(new Item(link, null)
                 {
                     SystemIcon = icon,
-                    CategoryOverride = icon.IsFolderLike ? AutoCategory.Folders : AutoCategory.Utilities,
+                    CategoryOverride = AutoCategory.System,
                 });
             }
         }
@@ -337,7 +338,9 @@ internal sealed class AutoOrganizer
             .GroupBy(i => i.CategoryOverride ?? IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        foreach (var small in groups.Where(g => g.Key != AutoCategory.Other && g.Value.Count < auto.MinItemsPerPad).ToList())
+        // "System" always gets its own pad, even for a lone Recycle Bin.
+        foreach (var small in groups.Where(g => g.Key is not AutoCategory.Other and not AutoCategory.System
+                                                && g.Value.Count < auto.MinItemsPerPad).ToList())
         {
             if (!groups.TryGetValue(AutoCategory.Other, out var other))
                 groups[AutoCategory.Other] = other = new();
@@ -362,12 +365,20 @@ internal sealed class AutoOrganizer
             .ToList();
 
         var workArea = SystemParameters.WorkArea;
-        var rects = AutoLayoutPlanner.Place(
-            sizes,
-            new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height),
-            obstacles,
-            Math.Max(8, settings.IntelligentSpacing),
-            auto.StartCorner);
+        var bounds = new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height);
+        var gap = Math.Max(8, settings.IntelligentSpacing);
+        var rects = new List<PlacedRect>();
+
+        // The System pad always takes the top-left corner, whichever side the rest start from.
+        if (ordered.Count > 0 && ordered[0].Key == AutoCategory.System)
+        {
+            var system = AutoLayoutPlanner.Place([sizes[0]], bounds, obstacles, gap, AutoStartCorner.TopLeft)[0];
+            rects.Add(system);
+            obstacles.Add(system);
+            sizes.RemoveAt(0);
+        }
+
+        rects.AddRange(AutoLayoutPlanner.Place(sizes, bounds, obstacles, gap, auto.StartCorner));
 
         var colors = PickColors(ordered.Select(g => g.Key).ToList(), auto.ColorMode);
 

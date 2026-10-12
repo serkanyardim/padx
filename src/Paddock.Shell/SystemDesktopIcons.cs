@@ -19,19 +19,18 @@ public static class SystemDesktopIcons
 
     /// <param name="Clsid">Shell object id, e.g. {645FF040-…} for the Recycle Bin.</param>
     /// <param name="ShownByDefault">Whether Windows shows it when the setting is absent.</param>
-    /// <param name="IsFolderLike">Opens like a folder (user files, This PC, Network).</param>
-    public sealed record Definition(string Clsid, bool ShownByDefault, bool IsFolderLike);
+    public sealed record Definition(string Clsid, bool ShownByDefault);
 
     /// <summary>A system icon that was on the desktop, and what the setting held before we touched it.</summary>
     public sealed record Taken(Definition Icon, int? PreviousValue);
 
     public static IReadOnlyList<Definition> All { get; } =
     [
-        new("{645FF040-5081-101B-9F08-00AA002F954E}", ShownByDefault: true, IsFolderLike: false),  // Recycle Bin
-        new("{59031a47-3f72-44a7-89c5-5595fe6b30ee}", ShownByDefault: false, IsFolderLike: true),  // User's Files
-        new("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", ShownByDefault: false, IsFolderLike: true),  // This PC
-        new("{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}", ShownByDefault: false, IsFolderLike: true),  // Network
-        new("{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}", ShownByDefault: false, IsFolderLike: false), // Control Panel
+        new("{645FF040-5081-101B-9F08-00AA002F954E}", ShownByDefault: true),  // Recycle Bin
+        new("{59031a47-3f72-44a7-89c5-5595fe6b30ee}", ShownByDefault: false),  // User's Files
+        new("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", ShownByDefault: false),  // This PC
+        new("{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}", ShownByDefault: false),  // Network
+        new("{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}", ShownByDefault: false), // Control Panel
     ];
 
     /// <summary>The built-in icons currently showing on the desktop.</summary>

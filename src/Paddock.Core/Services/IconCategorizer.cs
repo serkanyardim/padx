@@ -6,6 +6,8 @@ namespace Paddock.Core.Services;
 /// </summary>
 public enum AutoCategory
 {
+    /// <summary>Built-in desktop icons (Recycle Bin, user folder, This PC…). Always first.</summary>
+    System,
     Folders,
     Documents,
     Media,
@@ -107,6 +109,7 @@ public static class IconCategorizer
     /// <summary>Display name of a category, used as the pad title.</summary>
     public static string Title(AutoCategory category) => category switch
     {
+        AutoCategory.System => "System",
         AutoCategory.Folders => "Folders",
         AutoCategory.Documents => "Documents",
         AutoCategory.Media => "Media",
