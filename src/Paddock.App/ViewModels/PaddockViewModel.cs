@@ -271,6 +271,10 @@ public class PaddockViewModel : INotifyPropertyChanged
 
     public Visibility IconLabelVisibility => Appearance.ShowIconLabels ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>The desktop-style shadow under icon labels, or null for none.</summary>
+    public System.Windows.Media.Effects.Effect? IconLabelEffect
+        => PadVisuals.WantsLabelShadow(Appearance.LabelShadow, EffectiveColor) ? PadVisuals.LabelShadowEffect : null;
+
     /// <summary>Label colour picked for contrast against this pad's colour.</summary>
     public Brush IconTextBrush => _iconTextBrush ??= PadVisuals.LabelBrushFor(EffectiveColor);
 

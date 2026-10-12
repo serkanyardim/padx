@@ -389,21 +389,21 @@
                                                 <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
                                                         CornerRadius="4" Background="#3D8BFD" Margin="0,4,0,4" />
                                                 <TextBlock Text="Docs" TextAlignment="Center" FontSize="10.5"
-                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Foreground="{Binding PreviewLabelBrush}" Effect="{Binding PreviewLabelEffect}"
                                                            Visibility="{Binding PreviewLabelVisibility}" />
                                             </StackPanel>
                                             <StackPanel Width="{Binding PreviewCellWidth}">
                                                 <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
                                                         CornerRadius="4" Background="#FFC940" Margin="0,4,0,4" />
                                                 <TextBlock Text="Tools" TextAlignment="Center" FontSize="10.5"
-                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Foreground="{Binding PreviewLabelBrush}" Effect="{Binding PreviewLabelEffect}"
                                                            Visibility="{Binding PreviewLabelVisibility}" />
                                             </StackPanel>
                                             <StackPanel Width="{Binding PreviewCellWidth}">
                                                 <Border Width="{Binding PreviewIconSize}" Height="{Binding PreviewIconSize}"
                                                         CornerRadius="4" Background="#4DFFB8" Margin="0,4,0,4" />
                                                 <TextBlock Text="Notes" TextAlignment="Center" FontSize="10.5"
-                                                           Foreground="{Binding PreviewLabelBrush}"
+                                                           Foreground="{Binding PreviewLabelBrush}" Effect="{Binding PreviewLabelEffect}"
                                                            Visibility="{Binding PreviewLabelVisibility}" />
                                             </StackPanel>
                                         </StackPanel>
@@ -655,6 +655,23 @@
                                         <StackPanel>
                                             <TextBlock Text="Show icon labels" Style="{StaticResource D.Label}" />
                                             <TextBlock Text="label color adapts to the pad color" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="OFF"
+                                                         IsChecked="{Binding LabelShadow, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="AUTO"
+                                                         IsChecked="{Binding LabelShadow, Converter={StaticResource Eq}, ConverterParameter=Auto}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="ON"
+                                                         IsChecked="{Binding LabelShadow, Converter={StaticResource Eq}, ConverterParameter=On}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="Label shadow" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="like the desktop; auto = only under light labels" Style="{StaticResource D.Hint}" />
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>

@@ -160,6 +160,7 @@
                                     <TextBlock Text="{Binding DisplayName}"
                                                Visibility="{Binding DataContext.IconLabelVisibility, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                Foreground="{Binding DataContext.IconTextBrush, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                               Effect="{Binding DataContext.IconLabelEffect, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                FontFamily="Segoe UI Variable, Segoe UI"
                                                FontSize="10.5"
                                                FontWeight="Regular"

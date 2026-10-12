@@ -27,7 +27,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         nameof(PreviewTitle), nameof(PreviewLabelBrush), nameof(PreviewLabelVisibility),
         nameof(PreviewIconSize), nameof(PreviewCellWidth), nameof(PreviewSheen),
         nameof(PreviewSheenVisibility), nameof(PreviewBlurVisibility), nameof(PreviewBlurRadius),
-        nameof(IsGlass), nameof(GlassOptionsOpacity), nameof(PreviewGripVisibility), nameof(PreviewGripMargin),
+        nameof(IsGlass), nameof(GlassOptionsOpacity), nameof(PreviewGripVisibility), nameof(PreviewGripMargin), nameof(PreviewLabelEffect),
     ];
 
     private readonly SettingsService _settings;
@@ -309,6 +309,15 @@ public class SettingsViewModel : INotifyPropertyChanged
         get => A.IconSize;
         set { A.IconSize = value; AppearanceChanged(); }
     }
+
+    public LabelShadow LabelShadow
+    {
+        get => A.LabelShadow;
+        set { A.LabelShadow = value; AppearanceChanged(); }
+    }
+
+    public System.Windows.Media.Effects.Effect? PreviewLabelEffect
+        => PadVisuals.WantsLabelShadow(A.LabelShadow, A.PadColor) ? PadVisuals.LabelShadowEffect : null;
 
     public bool ShowIconLabels
     {

@@ -47,6 +47,9 @@ public class PadAppearance
     public double IconSize { get; set; } = 40;
     public bool ShowIconLabels { get; set; } = true;
 
+    /// <summary>The desktop's own trick for readable labels: a soft dark shadow under light text.</summary>
+    public LabelShadow LabelShadow { get; set; } = LabelShadow.Auto;
+
     /// <summary>Clamps values that may have been hand-edited in settings.json.</summary>
     public void Normalize()
     {
@@ -59,6 +62,16 @@ public class PadAppearance
         TitleFontSize = Math.Clamp(TitleFontSize, 8, 20);
         IconSize = Math.Clamp(IconSize, 24, 64);
     }
+}
+
+public enum LabelShadow
+{
+    Off,
+
+    /// <summary>Only under light (white) labels, like the desktop; dark labels on light pads stay clean.</summary>
+    Auto,
+
+    On
 }
 
 public enum GripMode

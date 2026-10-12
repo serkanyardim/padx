@@ -176,6 +176,30 @@ public static class PadVisuals
         return Freeze(brush);
     }
 
+    /// <summary>
+    /// The desktop's label shadow: black, 1px down-right, lightly blurred.
+    /// One frozen instance is shared by every label.
+    /// </summary>
+    public static System.Windows.Media.Effects.Effect LabelShadowEffect { get; } = CreateLabelShadow();
+
+    private static System.Windows.Media.Effects.Effect CreateLabelShadow()
+    {
+        var shadow = new System.Windows.Media.Effects.DropShadowEffect
+        {
+            Color = Colors.Black,
+            Direction = 315,
+            ShadowDepth = 1,
+            BlurRadius = 3,
+            Opacity = 0.85,
+        };
+        shadow.Freeze();
+        return shadow;
+    }
+
+    /// <summary>Whether labels in a pad of this colour get the shadow.</summary>
+    public static bool WantsLabelShadow(LabelShadow mode, string? padColor)
+        => mode == LabelShadow.On || (mode == LabelShadow.Auto && LabelBrushFor(padColor) == LightText);
+
     public static FontFamily Font(string? name)
         => new($"{(string.IsNullOrWhiteSpace(name) ? "Segoe UI Variable" : name)}, Segoe UI");
 
