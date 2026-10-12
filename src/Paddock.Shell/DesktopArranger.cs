@@ -25,6 +25,89 @@ public static class DesktopArranger
 
     /// <summary>Sorts the desktop icons by item type (then name). Returns false if the desktop view was unreachable.</summary>
     public static bool SortByItemType()
+        => WithDesktopView(view =>
+        {
+            var columns = new[]
+            {
+                new SortColumn { Key = ItemType, Direction = SORT_ASCENDING },
+                new SortColumn { Key = Name, Direction = SORT_ASCENDING },
+            };
+
+            return view.SetSortColumns(columns, columns.Length) == 0;
+        });
+
+    /// <summary>
+    /// Puts the built-in icons (This PC, user folder, … Recycle Bin) in the
+    /// first grid slots, in <see cref="SystemDesktopIcons.Rank"/> order, and
+    /// shifts everything else along behind them in its current order. Run it
+    /// after <see cref="SortByItemType"/>: a plain type sort files "System
+    /// Folder" under S.
+    /// </summary>
+    public static bool MoveSystemIconsFirst()
+        => WithDesktopView(view =>
+        {
+            if (view.ItemCount(SVGIO_ALLVIEW, out var count) != 0 || count == 0)
+                return false;
+
+            var items = new List<(IntPtr Pidl, Point Position, int Rank)>();
+            try
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    if (view.Item(i, out var pidl) != 0 || pidl == IntPtr.Zero)
+                        continue;
+
+                    view.GetItemPosition(pidl, out var point);
+                    items.Add((pidl, point, SystemRank(pidl)));
+                }
+
+                // The slots as they are filled: down each column, then across.
+                var slots = items.Select(i => i.Position).OrderBy(p => p.X).ThenBy(p => p.Y).ToList();
+                var current = items.OrderBy(i => i.Position.X).ThenBy(i => i.Position.Y).ToList();
+
+                var wanted = current.Where(i => i.Rank >= 0).OrderBy(i => i.Rank)
+                    .Concat(current.Where(i => i.Rank < 0))
+                    .ToList();
+
+                if (wanted.Select(i => i.Pidl).SequenceEqual(current.Select(i => i.Pidl)))
+                    return true;
+
+                var pidls = wanted.Select(i => i.Pidl).ToArray();
+                var points = slots.ToArray();
+                return view.SelectAndPositionItems((uint)pidls.Length, pidls, points, SVSI_POSITIONITEM) == 0;
+            }
+            finally
+            {
+                foreach (var item in items)
+                    Marshal.FreeCoTaskMem(item.Pidl);
+            }
+        });
+
+    /// <summary>System-pad rank of a desktop item, or -1 for an ordinary file or folder.</summary>
+    private static int SystemRank(IntPtr childPidl)
+    {
+        // Desktop items' child IDs are also absolute: the desktop is the root.
+        if (SHGetNameFromIDList(childPidl, SIGDN_DESKTOPABSOLUTEPARSING, out var namePtr) != 0 || namePtr == IntPtr.Zero)
+            return -1;
+
+        string? name;
+        try
+        {
+            name = Marshal.PtrToStringUni(namePtr);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(namePtr);
+        }
+
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.Equals(name?.TrimEnd('\\'), profile.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+            name = "::{59031a47-3f72-44a7-89c5-5595fe6b30ee}";
+
+        return SystemDesktopIcons.FromTarget(name) is null ? -1 : SystemDesktopIcons.Rank(name);
+    }
+
+    private static bool WithDesktopView(Func<IFolderView2, bool> action)
     {
         object? windows = null;
         object? desktop = null;
@@ -49,17 +132,11 @@ public static class DesktopArranger
             if (((IShellBrowser)browser).QueryActiveShellView(out view) != 0 || view is null)
                 return false;
 
-            var columns = new[]
-            {
-                new SortColumn { Key = ItemType, Direction = SORT_ASCENDING },
-                new SortColumn { Key = Name, Direction = SORT_ASCENDING },
-            };
-
-            return ((IFolderView2)view).SetSortColumns(columns, columns.Length) == 0;
+            return action((IFolderView2)view);
         }
         catch (Exception ex)
         {
-            Log.Warn($"Could not sort the desktop by item type: {ex.Message}");
+            Log.Warn($"Could not arrange the desktop: {ex.Message}");
             return false;
         }
         finally
@@ -71,6 +148,16 @@ public static class DesktopArranger
             }
         }
     }
+
+    private const uint SVGIO_ALLVIEW = 0x2;
+    private const uint SVSI_POSITIONITEM = 0x80;
+    private const uint SIGDN_DESKTOPABSOLUTEPARSING = 0x80028000;
+
+    [DllImport("shell32.dll")]
+    private static extern int SHGetNameFromIDList(IntPtr pidl, uint sigdnName, out IntPtr ppszName);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct Point(int X, int Y);
 
     [StructLayout(LayoutKind.Sequential)]
     private readonly record struct PropertyKey(Guid FormatId, uint PropertyId);
@@ -148,17 +235,31 @@ public static class DesktopArranger
         void GetCurrentViewMode();
         void SetCurrentViewMode();
         void GetFolder();
-        void Item();
-        void ItemCount();
+
+        [PreserveSig]
+        int Item(int iItemIndex, out IntPtr ppidl);
+
+        [PreserveSig]
+        int ItemCount(uint uFlags, out int pcItems);
+
         void Items();
         void GetSelectionMarkedItem();
         void GetFocusedItem();
-        void GetItemPosition();
+
+        [PreserveSig]
+        int GetItemPosition(IntPtr pidl, out Point ppt);
+
         void GetSpacing();
         void GetDefaultSpacing();
         void GetAutoArrange();
         void SelectItem();
-        void SelectAndPositionItems();
+
+        [PreserveSig]
+        int SelectAndPositionItems(
+            uint cidl,
+            [In, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] IntPtr[] apidl,
+            [In, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] Point[] apt,
+            uint dwFlags);
 
         // IFolderView2
         void SetGroupBy();
