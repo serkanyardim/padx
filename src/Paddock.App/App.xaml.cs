@@ -17,6 +17,7 @@ public partial class App : Application
     private HotkeyService? _hotkeys;
     private System.Threading.Mutex? _instanceMutex;
     private Views.SettingsWindow? _settingsWindow;
+    private UiWatchdog? _watchdog;
 
     /// <summary>Smaller than this (DIPs) and a Ctrl + drag is treated as a slip, not a pad.</summary>
     private const double MinDrawnPadSize = 48;
@@ -51,6 +52,7 @@ public partial class App : Application
         }
 
         InstallCrashHandlers();
+        _watchdog = new UiWatchdog(Dispatcher);
         Log.Info($"padx starting (v{typeof(App).Assembly.GetName().Version}).");
 
         if (!ClaimSingleInstance())
@@ -302,7 +304,8 @@ public partial class App : Application
         try
         {
             Host.CloseAllWindows();
-            missing = Configs.Apply(name);
+            using (Activity.Begin($"loading config '{name}'"))
+                missing = Configs.Apply(name);
             ApplyLoadedSettings();
             Host.OpenAllWindows();
         }
@@ -454,7 +457,9 @@ public partial class App : Application
             return;
         }
 
-        var restored = Host.RestoreAllIconsToDesktop();
+        int restored;
+        using (Activity.Begin("restoring all icons to the desktop"))
+            restored = Host.RestoreAllIconsToDesktop();
 
         Views.DigitalDialog.Inform("Restore all icons",
             restored == 0
@@ -570,6 +575,7 @@ public partial class App : Application
 
         _hotkeys?.Dispose();
         _desktopDrag?.Dispose();
+        _watchdog?.Dispose();
         Host?.Dispose();
         DesktopIconService?.Dispose();
         IconExtractor?.Dispose();

@@ -81,7 +81,7 @@ public partial class ConfigsWindow : Window
         }
     }
 
-    private void SaveAs(string name)
+    private async void SaveAs(string name)
     {
         name = name.Trim();
 
@@ -99,12 +99,15 @@ public partial class ConfigsWindow : Window
 
         try
         {
-            CurrentApp.Configs.Save(name);
+            IsEnabled = false;
+            await CurrentApp.Configs.SaveAsync(name);
+            IsEnabled = true;
             Refresh(name);
             DigitalDialog.Inform("Save config", $"Saved as \"{name}\".");
         }
         catch (Exception ex)
         {
+            IsEnabled = true;
             Core.Services.Log.Error($"Could not save config '{name}'.", ex);
             DigitalDialog.Inform("Save config", $"Could not save: {ex.Message}");
         }

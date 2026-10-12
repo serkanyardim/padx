@@ -57,12 +57,11 @@ public static class ShortcutReader
 
         var targetIsFolder = false;
         if (!string.IsNullOrEmpty(target) && !target.Contains("://", StringComparison.Ordinal)
-            && !target.StartsWith("::", StringComparison.Ordinal))
+            && !target.StartsWith("::", StringComparison.Ordinal) && !IsNetworkPath(target))
         {
-            // Only a local check; a UNC target is judged by its name alone.
             try
             {
-                targetIsFolder = !target.StartsWith(@"\\", StringComparison.Ordinal) && Directory.Exists(target);
+                targetIsFolder = Directory.Exists(target);
             }
             catch (Exception)
             {
@@ -73,12 +72,51 @@ public static class ShortcutReader
         return new DesktopItemInfo(path, false, target, targetIsFolder, detailText, looksLikeGame);
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> NetworkDrives =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// UNC paths and mapped network drives (K:, M:…). Touching these can block
+    /// for half a minute when the share is offline, so they are judged by
+    /// name only. The drive type itself is a local lookup and is cached.
+    /// </summary>
+    public static bool IsNetworkPath(string path)
+    {
+        if (path.StartsWith(@"\\", StringComparison.Ordinal))
+            return true;
+
+        string? root;
+        try
+        {
+            root = Path.GetPathRoot(path);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(root))
+            return false;
+
+        return NetworkDrives.GetOrAdd(root, r =>
+        {
+            try
+            {
+                return new DriveInfo(r).DriveType is DriveType.Network or DriveType.NoRootDirectory;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        });
+    }
+
     private static bool IsLocalExe(string path)
     {
         try
         {
             return path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                   && !path.StartsWith(@"\\", StringComparison.Ordinal)
+                   && !IsNetworkPath(path)
                    && File.Exists(path);
         }
         catch (Exception)

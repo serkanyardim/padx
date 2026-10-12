@@ -29,26 +29,35 @@ internal sealed class ConfigManager
 
     private PaddockManager Manager => _app.PaddockManager;
 
-    public void Save(string name)
+    /// <summary>
+    /// Snapshots the layout on the UI thread (cheap), then reads the shortcuts
+    /// and writes the file in the background, so the UI never waits on disk.
+    /// </summary>
+    public async Task SaveAsync(string name)
     {
         // A deep copy, so later changes do not leak into the saved file.
         var settings = JsonSerializer.Deserialize<AppSettings>(
             JsonSerializer.Serialize(_app.Settings.Settings, SettingsService.SerializerOptions),
             SettingsService.SerializerOptions)!;
 
-        var icons = new Dictionary<string, List<ConfigIcon>>();
-        foreach (var pad in Manager.GetPaddocks())
-        {
-            icons[pad.Id] = PaddockManager.GetSortedIcons(pad)
-                .Select(i => new ConfigIcon(
+        var pads = Manager.GetPaddocks()
+            .Select(p => (p.Id, Icons: PaddockManager.GetSortedIcons(p).Select(i => (i.DesktopPath, i.Managed)).ToList()))
+            .ToList();
+
+        using var _ = Activity.Begin($"saving config '{name}'");
+
+        var icons = await Task.Run(() => pads.ToDictionary(
+            p => p.Id,
+            p => p.Icons.Select(i => new ConfigIcon(
                     Path.GetFileName(i.DesktopPath),
                     i.Managed,
                     i.DesktopPath,
                     SystemDesktopIcons.FromTarget(ShortcutReader.Describe(i.DesktopPath).Target)?.Clsid))
-                .ToList();
-        }
+                .ToList()));
 
-        Store.Save(new SavedConfig { Name = name.Trim(), SavedAt = DateTime.Now, Settings = settings, Icons = icons });
+        var config = new SavedConfig { Name = name.Trim(), SavedAt = DateTime.Now, Settings = settings, Icons = icons };
+        await Task.Run(() => Store.Save(config));
+
         Log.Info($"Config '{name}' saved: {icons.Count} pad(s), {icons.Values.Sum(l => l.Count)} item(s).");
     }
 

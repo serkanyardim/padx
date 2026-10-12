@@ -162,7 +162,17 @@ internal sealed class AutoOrganizer
         Plan plan;
         try
         {
-            plan = MakePlan(items, unlocked);
+            // Reading every shortcut (targets, version info, installer lookups)
+            // happens off the UI thread, so a slow disk or share never freezes it.
+            Dictionary<Item, AutoCategory> categories;
+            using (Activity.Begin("auto organize: reading shortcuts"))
+            {
+                categories = await Task.Run(() => items.ToDictionary(
+                    i => i,
+                    i => i.CategoryOverride ?? IconCategorizer.Categorize(ShortcutReader.Describe(i.Path))));
+            }
+
+            plan = MakePlan(items, categories, unlocked);
         }
         catch (Exception ex)
         {
@@ -186,7 +196,8 @@ internal sealed class AutoOrganizer
 
         try
         {
-            Execute(plan, unlocked, createdIds);
+            using (Activity.Begin("auto organize: moving items"))
+                Execute(plan, unlocked, createdIds);
         }
         catch (Exception ex)
         {
@@ -328,14 +339,14 @@ internal sealed class AutoOrganizer
     }
 
     /// <summary>Categories, pad sizes, positions and colours — no side effects.</summary>
-    private Plan MakePlan(List<Item> items, List<PaddockModel> unlocked)
+    private Plan MakePlan(List<Item> items, Dictionary<Item, AutoCategory> categories, List<PaddockModel> unlocked)
     {
         var settings = _app.Settings.Settings;
         var auto = settings.AutoMode;
 
-        // Categorise; tiny categories fold into "Other".
+        // Group by category; tiny categories fold into "Other".
         var groups = items
-            .GroupBy(i => i.CategoryOverride ?? IconCategorizer.Categorize(ShortcutReader.Describe(i.Path)))
+            .GroupBy(i => categories[i])
             .ToDictionary(g => g.Key, g => g.ToList());
 
         // "System" always gets its own pad, even for a lone Recycle Bin.
@@ -507,7 +518,8 @@ internal sealed class AutoOrganizer
 
         try
         {
-            await UndoAsync(run, _app.Settings.Settings.AutoMode.Animate);
+            using (Activity.Begin("auto organize: reverting"))
+                await UndoAsync(run, _app.Settings.Settings.AutoMode.Animate);
         }
         finally
         {

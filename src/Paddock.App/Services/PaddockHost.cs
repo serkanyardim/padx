@@ -335,7 +335,8 @@ internal sealed class PaddockHost : IDisposable
         _app.Dispatcher.InvokeAsync(async () =>
         {
             await Task.Delay(800);
-            Paddock.Shell.DesktopArranger.SortByItemType();
+            using (Activity.Begin("sorting the desktop by item type"))
+                Paddock.Shell.DesktopArranger.SortByItemType();
         });
 
         return restored;
