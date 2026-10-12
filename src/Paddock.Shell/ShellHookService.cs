@@ -146,6 +146,21 @@ public class ShellHookService
             : NativeMethods.HWND_BOTTOM;
     }
 
+    /// <summary>
+    /// Shows or hides Explorer's desktop icon view (the icons only — the
+    /// wallpaper and our pads stay). Used to hide the shuffle while Auto
+    /// Organize moves files around. Always pair a hide with a show.
+    /// </summary>
+    public void SetDesktopIconsVisible(bool visible)
+    {
+        var desktop = GetDesktopWindow();
+        var defView = NativeMethods.FindWindowExW(desktop, IntPtr.Zero, "SHELLDLL_DefView", null);
+        var listView = NativeMethods.FindWindowExW(defView, IntPtr.Zero, "SysListView32", null);
+
+        if (listView != IntPtr.Zero)
+            NativeMethods.ShowWindow(listView, visible ? NativeMethods.SW_SHOWNA : NativeMethods.SW_HIDE);
+    }
+
     private static bool HostsDesktopIcons(IntPtr windowHandle)
         => windowHandle != IntPtr.Zero
            && NativeMethods.IsWindow(windowHandle)

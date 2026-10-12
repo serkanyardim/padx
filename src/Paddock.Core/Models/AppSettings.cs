@@ -23,6 +23,7 @@ public class AppSettings
     public bool SnapEnabled { get; set; } = true;
     public double IntelligentSpacing { get; set; } = 12;
     public PadAppearance Appearance { get; set; } = new();
+    public AutoModeSettings AutoMode { get; set; } = new();
     public string RollUpExpandMode { get; set; } = "click";
     public string ActiveCorral { get; set; } = "default";
     public Dictionary<string, CorralModel> Corrals { get; set; } = new()

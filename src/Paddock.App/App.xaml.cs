@@ -37,6 +37,8 @@ public partial class App : Application
     /// <summary>Owns the live paddock windows.</summary>
     internal PaddockHost? Host { get; private set; }
 
+    internal AutoOrganizer? AutoOrganizer { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -73,8 +75,12 @@ public partial class App : Application
 
         InitializeTrayIcon();
 
+        // If a previous run died mid Auto Organize, the desktop icons could still be hidden.
+        ShellHookService.SetDesktopIconsVisible(true);
+
         Host = new PaddockHost(this);
         Host.Start();
+        AutoOrganizer = new AutoOrganizer(this);
 
         InitializeHotkeys();
         UpdateDesktopDrawing();
@@ -188,6 +194,7 @@ public partial class App : Application
             ShowImageMargin = true,
         };
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
+        menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
         menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
         menu.Items.Add("About...", Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
         menu.Items.Add("-");
@@ -304,6 +311,8 @@ public partial class App : Application
     }
 
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
+
+    internal void RunAutoOrganize() => _ = AutoOrganizer?.RunAsync();
 
     private void TogglePaddocks() => Host?.ToggleQuickHide();
 

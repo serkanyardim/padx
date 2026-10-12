@@ -40,6 +40,20 @@ internal sealed class PaddockHost : IDisposable
 
     internal int PaddockCount => _windows.Count;
 
+    internal IReadOnlyList<PaddockWindow> Windows => _windows;
+
+    /// <summary>
+    /// Creates the window for a pad model that is already in the layout.
+    /// With <paramref name="show"/> false the caller reveals it (Auto Organize
+    /// fades pads in one by one).
+    /// </summary>
+    internal PaddockWindow AddWindow(PaddockModel model, bool show)
+    {
+        var window = CreateWindow(model, show);
+        UpdateZOrderTimer();
+        return window;
+    }
+
     /// <summary>Restores the saved layout and starts watching the environment.</summary>
     internal void Start()
     {
@@ -124,6 +138,8 @@ internal sealed class PaddockHost : IDisposable
     // --- Visibility ---
 
     internal void ToggleQuickHide() => SetPaddocksVisible(_paddocksHidden);
+
+    internal bool PaddocksHidden => _paddocksHidden;
 
     internal void SetPaddocksVisible(bool visible)
     {
@@ -260,7 +276,7 @@ internal sealed class PaddockHost : IDisposable
         _windows.Clear();
     }
 
-    private PaddockWindow CreateWindow(PaddockModel model)
+    private PaddockWindow CreateWindow(PaddockModel model, bool show = true)
     {
         var viewModel = new PaddockViewModel(model, _app.PaddockManager, () => _app.Settings.Settings.Appearance);
         var window = new PaddockWindow(viewModel, _app.ShellHookService);
@@ -269,7 +285,7 @@ internal sealed class PaddockHost : IDisposable
 
         _windows.Add(window);
 
-        if (!_paddocksHidden || viewModel.ExcludeFromQuickHide)
+        if (show && (!_paddocksHidden || viewModel.ExcludeFromQuickHide))
             window.Show();
 
         return window;

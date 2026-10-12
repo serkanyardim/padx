@@ -38,5 +38,7 @@ public partial class SettingsWindow : Window
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e) => App.OpenSettingsFolder();
 
+    private void RunAutoOrganize_Click(object sender, RoutedEventArgs e) => CurrentApp.RunAutoOrganize();
+
     private void ResetAppearance_Click(object sender, RoutedEventArgs e) => _viewModel.ResetAppearance();
 }

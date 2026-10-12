@@ -52,6 +52,36 @@ public class PaddockManager
         return paddock;
     }
 
+    /// <summary>
+    /// Re-adds a previously removed pad with its original id, geometry and
+    /// settings but no icons — the caller moves its items back in. Used to
+    /// undo an Auto Organize.
+    /// </summary>
+    public PaddockModel RestorePaddock(PaddockModel snapshot)
+    {
+        var paddock = new PaddockModel
+        {
+            Id = snapshot.Id,
+            Title = snapshot.Title,
+            TitleVisibility = snapshot.TitleVisibility,
+            X = snapshot.X,
+            Y = snapshot.Y,
+            Width = snapshot.Width,
+            Height = snapshot.Height,
+            Style = new PaddockStyle { Color = snapshot.Style.Color },
+            Locked = snapshot.Locked,
+            IsRolledUp = snapshot.IsRolledUp,
+            ExcludeFromQuickHide = snapshot.ExcludeFromQuickHide,
+            SortBy = snapshot.SortBy,
+            SortAscending = snapshot.SortAscending,
+        };
+
+        GetPaddocks().Add(paddock);
+        _iconStore?.EnsurePaddockFolder(paddock.Id);
+        SaveLayout();
+        return paddock;
+    }
+
     public PaddockModel? GetPaddock(string id)
     {
         return GetPaddocks().FirstOrDefault(p => p.Id == id);

@@ -14,6 +14,7 @@ internal static class TrayMenuIcons
     private static readonly Color Blue = Color.FromArgb(10, 132, 255);
     private static readonly Color Green = Color.FromArgb(48, 209, 88);
     private static readonly Color Gray = Color.FromArgb(142, 142, 147);
+    private static readonly Color Violet = Color.FromArgb(175, 82, 222);
 
     /// <summary>Menu icon edge in device pixels for the current system DPI.</summary>
     public static int CurrentSize()
@@ -27,6 +28,23 @@ internal static class TrayMenuIcons
         using var pen = WhitePen(2f);
         g.DrawLine(pen, 8f, 4.5f, 8f, 11.5f);
         g.DrawLine(pen, 4.5f, 8f, 11.5f, 8f);
+    });
+
+    public static Bitmap AutoOrganize(int size) => Draw(size, Violet, g =>
+    {
+        // Four tiles, one of them a sparkle: "sorted for you".
+        using var white = new SolidBrush(Color.White);
+        g.FillRectangle(white, 4f, 4f, 3.4f, 3.4f);
+        g.FillRectangle(white, 4f, 8.6f, 3.4f, 3.4f);
+        g.FillRectangle(white, 8.6f, 8.6f, 3.4f, 3.4f);
+
+        using var path = new GraphicsPath();
+        path.AddPolygon(new PointF[]
+        {
+            new(10.3f, 3.2f), new(11f, 5f), new(12.8f, 5.7f), new(11f, 6.4f),
+            new(10.3f, 8.2f), new(9.6f, 6.4f), new(7.8f, 5.7f), new(9.6f, 5f),
+        });
+        g.FillPath(white, path);
     });
 
     public static Bitmap Settings(int size) => Draw(size, Blue, g =>

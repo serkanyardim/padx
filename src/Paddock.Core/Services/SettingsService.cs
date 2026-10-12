@@ -53,6 +53,8 @@ public class SettingsService
             {
                 loaded.Appearance ??= new PadAppearance();
                 loaded.Appearance.Normalize();
+                loaded.AutoMode ??= new AutoModeSettings();
+                loaded.AutoMode.Normalize();
                 return loaded;
             }
 

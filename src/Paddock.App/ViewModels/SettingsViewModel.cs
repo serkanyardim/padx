@@ -91,6 +91,46 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { S.RollUpExpandMode = value; Changed(); }
     }
 
+    // ===== Auto mode =====
+
+    private AutoModeSettings Auto => S.AutoMode;
+
+    public double MaxIconsPerRow
+    {
+        get => Auto.MaxIconsPerRow;
+        set { Auto.MaxIconsPerRow = (int)Math.Round(value); Changed(); }
+    }
+
+    public double MinItemsPerPad
+    {
+        get => Auto.MinItemsPerPad;
+        set { Auto.MinItemsPerPad = (int)Math.Round(value); Changed(); }
+    }
+
+    public AutoColorMode AutoColorMode
+    {
+        get => Auto.ColorMode;
+        set { Auto.ColorMode = value; Changed(); }
+    }
+
+    public AutoStartCorner AutoStartCorner
+    {
+        get => Auto.StartCorner;
+        set { Auto.StartCorner = value; Changed(); }
+    }
+
+    public bool LockCreatedPads
+    {
+        get => Auto.LockCreatedPads;
+        set { Auto.LockCreatedPads = value; Changed(); }
+    }
+
+    public bool AnimateAutoMode
+    {
+        get => Auto.Animate;
+        set { Auto.Animate = value; Changed(); }
+    }
+
     // ===== Shortcuts =====
 
     public string ToggleHotkey

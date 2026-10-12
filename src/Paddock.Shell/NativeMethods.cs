@@ -272,6 +272,13 @@ internal static partial class NativeMethods
     [DllImport("user32.dll")]
     internal static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
 
+    internal const int SW_HIDE = 0;
+    internal const int SW_SHOWNA = 8;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     // -- Shell change notification --
 
     internal const int SHCNE_UPDATEDIR = 0x00001000;
