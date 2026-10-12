@@ -12,8 +12,9 @@ namespace Paddock.App.Views;
 internal sealed class DigitalDialog : Window
 {
     private bool _confirmed;
+    private TextBox? _input;
 
-    private DigitalDialog(string title, string message, string confirmText, string? cancelText)
+    private DigitalDialog(string title, string message, string confirmText, string? cancelText, string? inputText = null, int selectLength = -1)
     {
         Title = "Paddock";
         Width = 420;
@@ -62,6 +63,25 @@ internal sealed class DigitalDialog : Window
             FontSize = 13,
             Foreground = Brush("D.TextDim"),
         });
+        if (inputText is not null)
+        {
+            _input = new TextBox
+            {
+                Text = inputText,
+                Style = (Style)FindResource("D.Field"),
+                FontSize = 13,
+                Margin = new Thickness(0, 12, 0, 0),
+            };
+            body.Children.Add(_input);
+
+            // Select the name, not the extension — as Explorer does.
+            Loaded += (_, _) =>
+            {
+                _input.Focus();
+                _input.Select(0, selectLength >= 0 ? selectLength : inputText.Length);
+            };
+        }
+
         body.Children.Add(buttons);
 
         Content = new Border { BorderBrush = Brush("D.LineStrong"), BorderThickness = new Thickness(1), Child = body };
@@ -81,6 +101,14 @@ internal sealed class DigitalDialog : Window
         var dialog = new DigitalDialog(title, message, confirmText, cancelText);
         dialog.ShowDialog();
         return dialog._confirmed;
+    }
+
+    /// <summary>Asks for a line of text; null when cancelled.</summary>
+    public static string? Prompt(string title, string message, string initial, int selectLength = -1, string confirmText = "OK")
+    {
+        var dialog = new DigitalDialog(title, message, confirmText, "CANCEL", initial, selectLength);
+        dialog.ShowDialog();
+        return dialog._confirmed ? dialog._input!.Text : null;
     }
 
     public static void Inform(string title, string message)

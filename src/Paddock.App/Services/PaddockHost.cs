@@ -209,6 +209,7 @@ internal sealed class PaddockHost : IDisposable
     {
         var manager = _app.PaddockManager;
         var restored = 0;
+        var systemIconsShown = false;
 
         using (manager.DeferSave())
         {
@@ -216,15 +217,59 @@ internal sealed class PaddockHost : IDisposable
             {
                 foreach (var icon in paddock.Icons.ToList())
                 {
+                    // A shortcut standing in for a built-in icon (Recycle Bin…):
+                    // the real icon comes back instead of the shortcut.
+                    if (Paddock.Shell.SystemDesktopIcons.FromTarget(
+                            Paddock.Shell.ShortcutReader.Describe(icon.DesktopPath).Target) is { } systemIcon)
+                    {
+                        manager.RemoveIconFromPaddock(paddock.Id, icon.DesktopPath);
+                        TryDelete(icon.DesktopPath);
+                        Paddock.Shell.SystemDesktopIcons.Show(systemIcon);
+                        systemIconsShown = true;
+                        restored++;
+                        continue;
+                    }
+
                     if (manager.EjectIcon(paddock.Id, icon.DesktopPath) is not null)
                         restored++;
                 }
             }
+
+            // Every pad is empty now; empty pads are just clutter.
+            foreach (var window in _windows.Where(IsEmpty).ToList())
+                RemovePaddock(window);
         }
 
-        RefreshAll();
         _app.DesktopIconService.NotifyShellOfDesktopChange();
+
+        if (systemIconsShown)
+            Paddock.Shell.SystemDesktopIcons.RefreshDesktop();
+
+        // Lay the returned icons out by kind, as "Sort by → Item type" would.
+        // Explorer needs a moment to pick up the new files first.
+        _app.Dispatcher.InvokeAsync(async () =>
+        {
+            await Task.Delay(800);
+            Paddock.Shell.DesktopArranger.SortByItemType();
+        });
+
         return restored;
+    }
+
+    private bool IsEmpty(PaddockWindow window)
+        => _app.PaddockManager.GetPaddock(window.ViewModel.Id)?.Icons.Count == 0;
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (System.IO.File.Exists(path))
+                System.IO.File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not delete '{path}': {ex.Message}");
+        }
     }
 
     internal void RefreshAll()

@@ -329,25 +329,20 @@ public partial class App : Application
         if (Host is null)
             return;
 
-        var answer = MessageBox.Show(
-            "Move every item out of your paddocks and back onto the desktop?\n\n" +
-            "The paddocks themselves stay where they are.",
-            "Paddock",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Question);
-
-        if (answer != MessageBoxResult.OK)
+        if (!Views.DigitalDialog.Confirm("Restore all icons",
+                "Every item goes back onto the desktop, sorted by item type. Built-in icons " +
+                "(Recycle Bin, your user folder…) reappear as themselves, and the emptied pads are removed.",
+                "RESTORE"))
+        {
             return;
+        }
 
         var restored = Host.RestoreAllIconsToDesktop();
 
-        MessageBox.Show(
+        Views.DigitalDialog.Inform("Restore all icons",
             restored == 0
                 ? "There was nothing to restore."
-                : $"Moved {restored} item(s) back to the desktop.",
-            "Paddock",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+                : $"Moved {restored} item(s) back to the desktop.");
     }
 
     /// <summary>Shows the settings window, or brings the open one to the front.</summary>

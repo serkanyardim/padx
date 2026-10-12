@@ -140,6 +140,19 @@ public static class ShellContextMenu
     [DllImport("ole32.dll")]
     private static extern void CoUninitialize();
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool InsertMenu(IntPtr hMenu, uint uPosition, uint uFlags, UIntPtr uIDNewItem, string lpNewItem);
+
+    [DllImport("user32.dll")]
+    private static extern int GetMenuItemCount(IntPtr hMenu);
+
+    private const uint MF_BYPOSITION = 0x0400;
+    private const uint MF_STRING = 0x0000;
+
+    /// <summary>Our own "Rename" entry; above the shell's 1..0x7FFF command range.</summary>
+    private const uint RenameCommand = 0x8001;
+
     private const uint TPM_RETURNCMD = 0x0100;
     private const uint TPM_LEFTALIGN = 0x0000;
     private const uint CMF_NORMAL = 0x00000000;
@@ -157,10 +170,15 @@ public static class ShellContextMenu
     /// <param name="windowHandle">HWND of the owner window.</param>
     /// <param name="x">Screen X coordinate for the menu.</param>
     /// <param name="y">Screen Y coordinate for the menu.</param>
-    public static void Show(string filePath, IntPtr windowHandle, int x, int y)
+    /// <returns>
+    /// <see cref="ShellMenuResult.Rename"/> when the user picked our Rename
+    /// entry — the caller does the renaming, since the shell's own Rename
+    /// verb needs an Explorer view to edit in.
+    /// </returns>
+    public static ShellMenuResult Show(string filePath, IntPtr windowHandle, int x, int y)
     {
         if (string.IsNullOrEmpty(filePath))
-            return;
+            return ShellMenuResult.None;
 
         IntPtr pidlFull = IntPtr.Zero;
         IntPtr hMenu = IntPtr.Zero;
@@ -178,13 +196,13 @@ public static class ShellContextMenu
             uint sfgao = 0;
             int hr = SHParseDisplayName(filePath, IntPtr.Zero, out pidlFull, 0, out sfgao);
             if (hr != 0 || pidlFull == IntPtr.Zero)
-                return;
+                return ShellMenuResult.None;
 
             // Bind to the parent folder and get the child PIDL.
             Guid iidShellFolder = IID_IShellFolder;
             hr = SHBindToParent(pidlFull, ref iidShellFolder, out IntPtr ppvFolder, out IntPtr pidlChild);
             if (hr != 0 || ppvFolder == IntPtr.Zero)
-                return;
+                return ShellMenuResult.None;
 
             folder = (IShellFolder)Marshal.GetObjectForIUnknown(ppvFolder);
             Marshal.Release(ppvFolder);
@@ -200,7 +218,7 @@ public static class ShellContextMenu
                 out IntPtr ppvContextMenu);
 
             if (ppvContextMenu == IntPtr.Zero)
-                return;
+                return ShellMenuResult.None;
 
             contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(ppvContextMenu);
             Marshal.Release(ppvContextMenu);
@@ -208,14 +226,21 @@ public static class ShellContextMenu
             // Build the popup menu.
             hMenu = CreatePopupMenu();
             if (hMenu == IntPtr.Zero)
-                return;
+                return ShellMenuResult.None;
 
             hr = contextMenu.QueryContextMenu(hMenu, 0, 1, 0x7FFF, CMF_NORMAL | CMF_EXPLORE);
             if (hr < 0)
-                return;
+                return ShellMenuResult.None;
+
+            // Rename goes just above the last entry (Properties), as on the desktop.
+            var count = GetMenuItemCount(hMenu);
+            InsertMenu(hMenu, (uint)Math.Max(0, count - 1), MF_BYPOSITION | MF_STRING, (UIntPtr)RenameCommand, "Rena&me");
 
             // Show the menu and wait for the user's choice.
             uint cmd = TrackPopupMenuEx(hMenu, TPM_RETURNCMD | TPM_LEFTALIGN, x, y, windowHandle, IntPtr.Zero);
+
+            if (cmd == RenameCommand)
+                return ShellMenuResult.Rename;
 
             if (cmd >= 1)
             {
@@ -233,12 +258,16 @@ public static class ShellContextMenu
                 };
 
                 contextMenu.InvokeCommand(ref ci);
+                return ShellMenuResult.Invoked;
             }
+
+            return ShellMenuResult.None;
         }
         catch (Exception ex)
         {
             // Swallow errors — if COM fails we simply don't show a menu.
             Log.Error($"Could not show the shell context menu for '{filePath}'.", ex);
+            return ShellMenuResult.None;
         }
         finally
         {
@@ -258,4 +287,11 @@ public static class ShellContextMenu
                 CoUninitialize();
         }
     }
+}
+
+public enum ShellMenuResult
+{
+    None,
+    Invoked,
+    Rename,
 }

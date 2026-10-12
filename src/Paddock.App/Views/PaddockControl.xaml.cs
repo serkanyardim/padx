@@ -411,10 +411,49 @@ public partial class PaddockControl : UserControl
         var handle = window is null ? IntPtr.Zero : new WindowInteropHelper(window).Handle;
         var screenPoint = element.PointToScreen(e.GetPosition(element));
 
-        ShellContextMenu.Show(icon.FullPath, handle, (int)screenPoint.X, (int)screenPoint.Y);
+        var result = ShellContextMenu.Show(icon.FullPath, handle, (int)screenPoint.X, (int)screenPoint.Y);
+
+        if (result == ShellMenuResult.Rename)
+            RenameIcon(icon);
 
         // The menu may have deleted or renamed the item.
         CurrentApp.Host?.RefreshFromDisk();
+    }
+
+    /// <summary>
+    /// Asks for a new name. Shortcut extensions stay hidden (Explorer never
+    /// shows them); for other files only the part before the extension is
+    /// pre-selected.
+    /// </summary>
+    private void RenameIcon(IconViewModel icon)
+    {
+        var fileName = System.IO.Path.GetFileName(icon.FullPath);
+        var extension = System.IO.Path.GetExtension(fileName);
+        var hideExtension = extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
+                            || extension.Equals(".url", StringComparison.OrdinalIgnoreCase);
+        var isFolder = System.IO.Directory.Exists(icon.FullPath);
+
+        var shown = hideExtension ? System.IO.Path.GetFileNameWithoutExtension(fileName) : fileName;
+        var stemLength = isFolder || hideExtension ? shown.Length : System.IO.Path.GetFileNameWithoutExtension(fileName).Length;
+
+        while (true)
+        {
+            var answer = DigitalDialog.Prompt("Rename", "New name:", shown, stemLength, "RENAME");
+            if (answer is null)
+                return;
+
+            var newName = hideExtension ? answer.Trim() + extension : answer.Trim();
+            var error = CurrentApp.PaddockManager.RenameIcon(ViewModel.Id, icon.FullPath, newName);
+
+            if (error is null)
+            {
+                ViewModel.RefreshIcons();
+                return;
+            }
+
+            DigitalDialog.Inform("Can't rename", error);
+            shown = answer;
+        }
     }
 
     // --- Context menu ---

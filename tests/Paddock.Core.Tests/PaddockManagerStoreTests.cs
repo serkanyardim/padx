@@ -55,6 +55,33 @@ public class PaddockManagerStoreTests : IDisposable
     }
 
     [Fact]
+    public void RenameIcon_RenamesTheFileAndUpdatesTheEntry()
+    {
+        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
+        var entry = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("old.lnk"))!;
+        var oldPath = entry.DesktopPath;
+
+        var error = _manager.RenameIcon(paddock.Id, oldPath, "new.lnk");
+
+        Assert.Null(error);
+        Assert.Equal(Path.Combine(_store, paddock.Id, "new.lnk"), entry.DesktopPath);
+        Assert.True(File.Exists(entry.DesktopPath));
+        Assert.False(File.Exists(oldPath));
+    }
+
+    [Fact]
+    public void RenameIcon_RefusesToOverwriteOrUseInvalidNames()
+    {
+        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
+        var first = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("a.txt"))!;
+        _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("b.txt"));
+
+        Assert.NotNull(_manager.RenameIcon(paddock.Id, first.DesktopPath, "b.txt"));
+        Assert.NotNull(_manager.RenameIcon(paddock.Id, first.DesktopPath, "bad:name.txt"));
+        Assert.True(File.Exists(first.DesktopPath));
+    }
+
+    [Fact]
     public void AddIconToPaddock_ReferencesFilesFromOutsideTheDesktopWithoutMoving()
     {
         var paddock = _manager.CreatePaddock("Docs", 0, 0, 300, 250);

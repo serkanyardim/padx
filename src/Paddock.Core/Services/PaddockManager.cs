@@ -198,6 +198,51 @@ public class PaddockManager
         return desktopPath;
     }
 
+    /// <summary>
+    /// Renames the item behind an icon in place and updates its entry.
+    /// Returns an error message, or null on success.
+    /// </summary>
+    public string? RenameIcon(string paddockId, string path, string newFileName)
+    {
+        var paddock = GetPaddock(paddockId);
+        var icon = paddock is null ? null : FindEntry(paddock, path);
+        if (icon is null)
+            return "That icon is no longer in this pad.";
+
+        newFileName = newFileName.Trim();
+        if (newFileName.Length == 0 || newFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return "A name can't be empty or contain any of these: \\ / : * ? \" < > |";
+
+        var folder = Path.GetDirectoryName(icon.DesktopPath);
+        if (folder is null)
+            return "That item can't be renamed.";
+
+        var target = Path.Combine(folder, newFileName);
+        if (string.Equals(target, icon.DesktopPath, StringComparison.Ordinal))
+            return null;
+
+        // A change of case only is fine; anything else must not overwrite.
+        if (!string.Equals(target, icon.DesktopPath, StringComparison.OrdinalIgnoreCase) && IconStore.ItemExists(target))
+            return $"There is already an item called \"{newFileName}\".";
+
+        try
+        {
+            if (Directory.Exists(icon.DesktopPath))
+                Directory.Move(icon.DesktopPath, target);
+            else
+                File.Move(icon.DesktopPath, target);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not rename '{icon.DesktopPath}' to '{newFileName}'.", ex);
+            return $"Windows would not rename it: {ex.Message}";
+        }
+
+        icon.DesktopPath = target;
+        SaveLayout();
+        return null;
+    }
+
     public void MoveIconBetweenPaddocks(string sourcePaddockId, string targetPaddockId, string path)
     {
         var source = GetPaddock(sourcePaddockId);

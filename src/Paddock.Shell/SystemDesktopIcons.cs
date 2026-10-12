@@ -24,14 +24,49 @@ public static class SystemDesktopIcons
     /// <summary>A system icon that was on the desktop, and what the setting held before we touched it.</summary>
     public sealed record Taken(Definition Icon, int? PreviousValue);
 
+    /// <summary>In the order they appear in the System pad: Recycle Bin always last.</summary>
     public static IReadOnlyList<Definition> All { get; } =
     [
-        new("{645FF040-5081-101B-9F08-00AA002F954E}", ShownByDefault: true),  // Recycle Bin
-        new("{59031a47-3f72-44a7-89c5-5595fe6b30ee}", ShownByDefault: false),  // User's Files
-        new("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", ShownByDefault: false),  // This PC
-        new("{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}", ShownByDefault: false),  // Network
+        new("{20D04FE0-3AEA-1069-A2D8-08002B30309D}", ShownByDefault: false), // This PC
+        new("{59031a47-3f72-44a7-89c5-5595fe6b30ee}", ShownByDefault: false), // User's Files
+        new("{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}", ShownByDefault: false), // Network
         new("{5399E694-6CE5-4D6C-8FCE-1D8870FDCBA0}", ShownByDefault: false), // Control Panel
+        new("{645FF040-5081-101B-9F08-00AA002F954E}", ShownByDefault: true),  // Recycle Bin
     ];
+
+    /// <summary>
+    /// The built-in icon a shortcut target stands for ("::{CLSID}", as
+    /// <see cref="ShortcutReader"/> reports it), or null.
+    /// </summary>
+    public static Definition? FromTarget(string? target)
+    {
+        if (target is null || !target.StartsWith("::", StringComparison.Ordinal))
+            return null;
+
+        var clsid = target[2..];
+        return All.FirstOrDefault(d => string.Equals(d.Clsid, clsid, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Position in the System pad; unknown shell objects go just before the Recycle Bin.</summary>
+    public static int Rank(string? target)
+    {
+        var icon = FromTarget(target);
+        // Known icons take even slots; an unknown one sits in the odd slot before the Recycle Bin.
+        return icon is null ? (All.Count - 1) * 2 - 1 : All.ToList().IndexOf(icon) * 2;
+    }
+
+    /// <summary>Switches a built-in icon back on, e.g. when its shortcut leaves Paddock.</summary>
+    public static void Show(Definition icon)
+    {
+        try
+        {
+            WriteSetting(icon.Clsid, 0);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"Could not show desktop icon {icon.Clsid}: {ex.Message}");
+        }
+    }
 
     /// <summary>The built-in icons currently showing on the desktop.</summary>
     public static IReadOnlyList<Definition> Visible()

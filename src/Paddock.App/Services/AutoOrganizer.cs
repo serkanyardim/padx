@@ -427,7 +427,18 @@ internal sealed class AutoOrganizer
                 model.Locked = auto.LockCreatedPads;
                 model.Style.Color = color;
 
-                foreach (var item in items)
+                // System icons keep a fixed order (This PC first … Recycle Bin last).
+                var ordered = items;
+                if (category == AutoCategory.System)
+                {
+                    model.SortBy = SortField.Manual;
+                    ordered = items
+                        .OrderBy(i => SystemDesktopIcons.Rank(
+                            i.SystemIcon is { } icon ? "::" + icon.Clsid : ShortcutReader.Describe(i.Path).Target))
+                        .ToList();
+                }
+
+                foreach (var item in ordered)
                 {
                     if (Manager.AddIconToPaddock(model.Id, item.Path) is { } entry)
                         item.Path = entry.DesktopPath;

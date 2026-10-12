@@ -30,5 +30,8 @@ public enum SortField
     Name,
     DateModified,
     FileType,
-    FileSize
+    FileSize,
+
+    /// <summary>Keep the order the icons were added in (the System pad uses this).</summary>
+    Manual
 }

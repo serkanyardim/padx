@@ -190,7 +190,7 @@
                                             VerticalAlignment="Center" Content="RESTORE" Click="RestoreAll_Click" />
                                     <StackPanel>
                                         <TextBlock Text="Restore all icons to desktop" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="empties every pad; the pads themselves stay" Style="{StaticResource D.Hint}" />
+                                        <TextBlock Text="all icons back on the desktop sorted by type; empty pads are removed" Style="{StaticResource D.Hint}" />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
