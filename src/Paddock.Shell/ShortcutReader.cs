@@ -24,12 +24,36 @@ public static class ShortcutReader
 
         var extension = Path.GetExtension(path);
         string? target = null;
+        var details = new List<string>();
 
         if (string.Equals(extension, ".lnk", StringComparison.OrdinalIgnoreCase))
-            target = ReadLinkTarget(path);
+        {
+            target = ReadLinkTarget(path, details);
+
+            // An "advertised" (MSI) shortcut points at an icon in C:\Windows\Installer.
+            // Windows Installer knows the real program and its product name.
+            if (target is not null && target.Contains(@"\Installer\{", StringComparison.OrdinalIgnoreCase)
+                && MsiTarget(path, out var productName) is { } real)
+            {
+                target = real;
+                if (productName is not null)
+                    details.Add(productName);
+            }
+        }
         else if (string.Equals(extension, ".url", StringComparison.OrdinalIgnoreCase)
                  || string.Equals(extension, ".website", StringComparison.OrdinalIgnoreCase))
+        {
             target = ReadUrl(path);
+        }
+
+        // What the program says about itself, and whether it sits in a game's folder.
+        var program = target ?? (string.Equals(extension, ".exe", StringComparison.OrdinalIgnoreCase) ? path : null);
+        var looksLikeGame = false;
+        if (program is not null && IsLocalExe(program))
+        {
+            AddVersionInfo(program, details);
+            looksLikeGame = GameDetector.LooksLikeGame(program);
+        }
 
         var targetIsFolder = false;
         if (!string.IsNullOrEmpty(target) && !target.Contains("://", StringComparison.Ordinal)
@@ -45,10 +69,76 @@ public static class ShortcutReader
             }
         }
 
-        return new DesktopItemInfo(path, false, target, targetIsFolder);
+        var detailText = details.Count == 0 ? null : string.Join(" | ", details.Distinct());
+        return new DesktopItemInfo(path, false, target, targetIsFolder, detailText, looksLikeGame);
     }
 
-    private static string? ReadLinkTarget(string path)
+    private static bool IsLocalExe(string path)
+    {
+        try
+        {
+            return path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                   && !path.StartsWith(@"\\", StringComparison.Ordinal)
+                   && File.Exists(path);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static void AddVersionInfo(string exe, List<string> details)
+    {
+        try
+        {
+            var info = System.Diagnostics.FileVersionInfo.GetVersionInfo(exe);
+            foreach (var text in new[] { info.ProductName, info.FileDescription, info.CompanyName })
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                    details.Add(text.Trim());
+            }
+        }
+        catch (Exception)
+        {
+            // No version resource: nothing to add.
+        }
+    }
+
+    /// <summary>The real program behind an advertised (MSI) shortcut, and the product's name.</summary>
+    private static string? MsiTarget(string linkPath, out string? productName)
+    {
+        productName = null;
+
+        var product = new StringBuilder(39);
+        var feature = new StringBuilder(39);
+        var component = new StringBuilder(39);
+
+        if (MsiGetShortcutTarget(linkPath, product, feature, component) != 0)
+            return null;
+
+        var nameBuffer = new StringBuilder(256);
+        var nameLength = (uint)nameBuffer.Capacity;
+        if (MsiGetProductInfo(product.ToString(), "ProductName", nameBuffer, ref nameLength) == 0)
+            productName = nameBuffer.ToString();
+
+        var pathBuffer = new StringBuilder(MaxPath);
+        var pathLength = (uint)pathBuffer.Capacity;
+        var state = MsiGetComponentPath(product.ToString(), component.ToString(), pathBuffer, ref pathLength);
+
+        // INSTALLSTATE_LOCAL (3) or INSTALLSTATE_SOURCE (4): a usable path.
+        return state is 3 or 4 && pathBuffer.Length > 0 ? pathBuffer.ToString() : null;
+    }
+
+    [DllImport("msi.dll", CharSet = CharSet.Unicode)]
+    private static extern uint MsiGetShortcutTarget(string szShortcutTarget, StringBuilder szProductCode, StringBuilder szFeatureId, StringBuilder szComponentCode);
+
+    [DllImport("msi.dll", CharSet = CharSet.Unicode)]
+    private static extern uint MsiGetProductInfo(string product, string property, StringBuilder value, ref uint length);
+
+    [DllImport("msi.dll", CharSet = CharSet.Unicode)]
+    private static extern int MsiGetComponentPath(string product, string component, StringBuilder path, ref uint length);
+
+    private static string? ReadLinkTarget(string path, List<string> details)
     {
         object? link = null;
 
@@ -56,6 +146,11 @@ public static class ShortcutReader
         {
             link = new CShellLink();
             ((IPersistFile)link).Load(path, 0);
+
+            var comment = new StringBuilder(MaxPath);
+            ((IShellLinkW)link).GetDescription(comment, comment.Capacity);
+            if (!string.IsNullOrWhiteSpace(comment.ToString()))
+                details.Add(comment.ToString().Trim());
 
             var buffer = new StringBuilder(MaxPath);
             ((IShellLinkW)link).GetPath(buffer, buffer.Capacity, IntPtr.Zero, SLGP_RAWPATH);
@@ -161,5 +256,9 @@ public static class ShortcutReader
         void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszFile, int cch, IntPtr pfd, uint fFlags);
 
         void GetIDList(out IntPtr ppidl);
+
+        void SetIDList(IntPtr pidl);
+
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pszName, int cch);
     }
 }

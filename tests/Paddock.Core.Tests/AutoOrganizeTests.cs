@@ -74,6 +74,31 @@ public class IconCategorizerTests
         => Assert.Equal(AutoCategory.System, Shortcut("bin", "::{645FF040-5081-101B-9F08-00AA002F954E}"));
 
     [Fact]
+    public void UnknownProgramInAGameEngineFolder_IsGames()
+        => Assert.Equal(AutoCategory.Games, IconCategorizer.Categorize(
+            new DesktopItemInfo(@"C:\Users\u\Desktop\Last Epoch.lnk", false, @"D:\fun\Last Epoch\Last Epoch.exe", LooksLikeGame: true)));
+
+    [Fact]
+    public void ProgramDetails_DecideWhenNameAndPathSayNothing()
+        => Assert.Equal(AutoCategory.Utilities, IconCategorizer.Categorize(
+            new DesktopItemInfo(@"C:\Users\u\Desktop\LRS.lnk", false, @"C:\Program Files\X\winpe\ifsui.exe",
+                Details: "Lazesoft Recovery Suite | Lazesoft")));
+
+    [Theory]
+    [InlineData("Google Play Games", @"C:\Program Files\Google\Play Games\Bootstrapper.exe", AutoCategory.Games)]
+    [InlineData("sVB IDE", @"C:\Windows\Installer\{004F0DE1}\_7F93.exe", AutoCategory.Development)]
+    [InlineData("Arduino IDE", @"C:\Program Files\Arduino IDE\Arduino IDE.exe", AutoCategory.Development)]
+    [InlineData("VMware Workstation Pro", @"C:\Program Files (x86)\VMware\VMware Workstation\vmware.exe", AutoCategory.Remote)]
+    [InlineData("PDQ Inventory", @"C:\Program Files (x86)\Admin Arsenal\PDQ Inventory\PDQInventoryConsole.exe", AutoCategory.Remote)]
+    [InlineData("QCAD", @"C:\Program Files\QCAD\qcad.exe", AutoCategory.Design)]
+    [InlineData("Google Earth Pro", @"C:\Program Files\Google\Google Earth Pro\client\googleearth.exe", AutoCategory.Design)]
+    [InlineData("RevPDF", @"C:\Program Files\RevPDF\RevPDF.exe", AutoCategory.Office)]
+    [InlineData("Xtreme Download Manager", @"C:\Program Files (x86)\XDM\xdm-app.exe", AutoCategory.Browsers)]
+    [InlineData("MiniTool Partition Wizard", @"C:\Program Files\MiniTool Partition Wizard 13\partitionwizard.exe", AutoCategory.Utilities)]
+    public void FormerlyUncategorisedApps_NowFindTheirPad(string name, string target, AutoCategory expected)
+        => Assert.Equal(expected, Shortcut(name, target));
+
+    [Fact]
     public void SystemCategory_SortsFirst()
     {
         Assert.Equal(AutoCategory.System, Enum.GetValues<AutoCategory>().Min());

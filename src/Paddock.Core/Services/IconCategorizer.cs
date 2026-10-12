@@ -31,7 +31,15 @@ public enum AutoCategory
 /// <param name="IsFolder">True for a directory.</param>
 /// <param name="Target">For a shortcut: what it launches or opens (exe, document, folder or URL).</param>
 /// <param name="TargetIsFolder">True when the shortcut points at a folder.</param>
-public sealed record DesktopItemInfo(string Path, bool IsFolder, string? Target = null, bool TargetIsFolder = false)
+/// <param name="Details">
+/// Free text about the program: the shortcut's comment, the exe's product,
+/// company and description, an installer's product name. Used when the name
+/// and path say nothing ("ifsui.exe" → "Lazesoft Recovery Suite").
+/// </param>
+/// <param name="LooksLikeGame">The program sits next to a game engine's files (Unity, Unreal, Steam API).</param>
+public sealed record DesktopItemInfo(
+    string Path, bool IsFolder, string? Target = null, bool TargetIsFolder = false,
+    string? Details = null, bool LooksLikeGame = false)
 {
     public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
     public string Extension => System.IO.Path.GetExtension(Path);
@@ -77,24 +85,34 @@ public static class IconCategorizer
     private static readonly (AutoCategory Category, string[] Keywords)[] AppRules =
     [
         (AutoCategory.Games, ["steam", "epicgames", "epic games", "battle.net", "riotclient", "riot client", "gog galaxy",
-            "ubisoft", "uplay", "origin", "ea app", "minecraft", "xbox", "roblox", "league of legends", "valorant", "steamapps"]),
+            "ubisoft", "uplay", "origin", "ea app", "minecraft", "xbox", "roblox", "league of legends", "valorant", "steamapps",
+            "games", "game", "play games", "blizzard", "bethesda", "rockstar games", "playnite", "heroic", "itch"]),
         (AutoCategory.Browsers, ["chrome", "msedge", "microsoft edge", "firefox", "opera", "brave", "vivaldi", "iexplore",
-            "internet explorer", "tor browser", "arc"]),
+            "internet explorer", "tor browser", "arc", "download manager", "xdm", "idman", "jdownloader", "qbittorrent",
+            "utorrent", "bittorrent", "free download manager"]),
         (AutoCategory.Communication, ["teams", "outlook", "slack", "discord", "zoom", "whatsapp", "telegram", "skype",
             "thunderbird", "signal", "webex", "mattermost", "mail"]),
         (AutoCategory.Office, ["winword", "word", "excel", "powerpnt", "powerpoint", "onenote", "msaccess", "access",
             "mspub", "publisher", "visio", "project", "acrobat", "acrord", "foxit", "libreoffice", "soffice",
-            "notion", "obsidian", "evernote", "joplin", "pdf"]),
+            "notion", "obsidian", "evernote", "joplin", "pdf", "revpdf", "pdf24", "sumatrapdf", "nitro", "wps office",
+            "onlyoffice", "pdf editor", "pdf reader"]),
         (AutoCategory.Remote, ["putty", "kitty", "winscp", "filezilla", "anydesk", "teamviewer", "mstsc", "remote desktop",
-            "rustdesk", "vnc", "vncviewer", "mobaxterm", "termius", "netscan", "wireshark", "nmap", "advanced ip scanner", "angry ip", "winbox", "openvpn", "forticlient", "globalprotect", "wireguard", "citrix"]),
+            "rustdesk", "vnc", "vncviewer", "mobaxterm", "termius", "netscan", "wireshark", "nmap", "advanced ip scanner", "angry ip", "winbox", "openvpn", "forticlient", "globalprotect", "wireguard", "citrix",
+            // IT administration and virtualisation live here too.
+            "rdm", "remote desktop manager", "litemanager", "romviewer", "lm-viewer", "radmin", "ultravnc", "dameware",
+            "turboftp", "cyberduck", "pdq", "lansweeper", "rvtools", "vmware", "vsphere", "virtualbox", "hyper-v",
+            "proxmox", "solarwinds", "zabbix", "prtg", "xmanager", "xshell", "xftp", "securecrt", "royal ts", "mremoteng"]),
         (AutoCategory.Development, ["code", "visual studio", "devenv", "idea", "idea64", "pycharm", "rider", "webstorm", "clion",
             "goland", "datagrip", "android studio", "sublime", "notepad++", "atom", "cursor", "git", "github", "githubdesktop", "sourcetree",
             "postman", "insomnia", "docker", "ssms", "sql server", "dbeaver", "heidisql", "navicat", "pgadmin",
-            "laragon", "xampp", "wampserver", "powershell", "cmd", "terminal", "wt", "python", "node", "unity", "unreal", "windsurf"]),
+            "laragon", "xampp", "wampserver", "powershell", "cmd", "terminal", "wt", "python", "node", "unity", "unreal", "windsurf",
+            "arduino", "herd", "svb", "small visual basic", "visual basic", "eclipse", "netbeans", "qt creator", "mysql workbench",
+            "processing", "codeblocks", "dev-c++", "lazarus", "delphi", "jupyter", "anaconda", "sql developer", "toad"]),
         (AutoCategory.Design, ["acad", "autocad", "dwg", "dwgsee", "civil 3d", "civil3d", "revit", "sketchup", "solidworks",
             "netcad", "microstation", "qgis", "arcgis", "global mapper", "photoshop", "illustrator", "indesign",
             "lightroom", "premiere", "after effects", "figma", "gimp", "inkscape", "blender", "krita", "canva",
-            "coreldraw", "3ds max", "maya", "rhino", "fusion 360", "affinity"]),
+            "coreldraw", "3ds max", "maya", "rhino", "fusion 360", "affinity", "qcad", "librecad", "freecad",
+            "draftsight", "dwg trueview", "google earth", "solid edge", "catia", "zwcad", "bricscad"]),
         (AutoCategory.Media, ["vlc", "spotify", "potplayer", "mpc-hc", "mpc-be", "itunes", "foobar", "foobar2000", "winamp", "obs", "obs64",
             "audacity", "handbrake", "kodi", "plex", "media player", "wmplayer", "photos", "irfanview", "xnview",
             "sharex", "greenshot", "snagit", "davinci", "capcut", "netflix", "iptvnator", "iptv"]),
@@ -103,7 +121,9 @@ public static class IconCategorizer
             "taskmgr", "regedit", "explorer", "notepad", "paint", "mspaint", "snipping", "recycle", "this pc",
             "keepass", "bitwarden", "1password", "lastpass", "powertoys", "autohotkey", "treesize", "windirstat",
             "malwarebytes", "defender", "antivirus", "kaspersky", "eset", "avast", "nvidia", "intel", "realtek",
-            "logitech", "dell", "lenovo", "hp"]),
+            "logitech", "dell", "lenovo", "hp", "coodesker", "fences", "rainmeter", "partition", "minitool",
+            "lazesoft", "recovery", "aomei", "macrium", "acronis", "veeam", "easeus", "backup", "disk", "driver",
+            "uninstaller", "revo"]),
     ];
 
     /// <summary>Display name of a category, used as the pad title.</summary>
@@ -114,11 +134,11 @@ public static class IconCategorizer
         AutoCategory.Documents => "Documents",
         AutoCategory.Media => "Media",
         AutoCategory.Office => "Office",
-        AutoCategory.Browsers => "Browsers",
+        AutoCategory.Browsers => "Internet",
         AutoCategory.Links => "Links",
         AutoCategory.Communication => "Communication",
         AutoCategory.Development => "Dev Tools",
-        AutoCategory.Remote => "Remote & Network",
+        AutoCategory.Remote => "IT & Network",
         AutoCategory.Design => "Design & CAD",
         AutoCategory.Games => "Games",
         AutoCategory.Utilities => "Utilities",
@@ -139,7 +159,15 @@ public static class IconCategorizer
             return CategorizeShortcut(item);
 
         if (ExecutableExtensions.Contains(extension))
-            return IsInstaller(item.Name, extension) ? AutoCategory.Installers : MatchApp(item.Name, item.Path) ?? AutoCategory.Apps;
+        {
+            if (IsInstaller(item.Name, extension))
+                return AutoCategory.Installers;
+
+            return MatchApp(item.Name, item.Path)
+                   ?? (item.LooksLikeGame ? AutoCategory.Games : (AutoCategory?)null)
+                   ?? MatchApp(item.Details, null)
+                   ?? AutoCategory.Apps;
+        }
 
         return ByFileExtension(extension) ?? AutoCategory.Other;
     }
@@ -185,8 +213,12 @@ public static class IconCategorizer
 
         var targetName = target.Length > 0 ? SafeFileNameWithoutExtension(target) : null;
 
+        // Strongest first: what it runs, then what engine it is built on, then
+        // what the shortcut is called, then what the program says about itself.
         return MatchApp(targetName, target)
+               ?? (item.LooksLikeGame ? AutoCategory.Games : (AutoCategory?)null)
                ?? MatchApp(item.Name, null)
+               ?? MatchApp(item.Details, null)
                ?? AutoCategory.Apps;
     }
 
