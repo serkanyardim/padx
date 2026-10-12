@@ -176,6 +176,52 @@ internal sealed class PaddockHost : IDisposable
 
     internal bool PaddocksHidden => _paddocksHidden;
 
+    // --- Hidden pads (× button) ---
+
+    internal bool IsHiddenPad(PaddockWindow window)
+        => _app.PaddockManager.GetPaddock(window.ViewModel.Id)?.Hidden == true;
+
+    /// <summary>How many pads are put away with their × button.</summary>
+    internal int HiddenPadCount => _app.PaddockManager.GetPaddocks().Count(p => p.Hidden);
+
+    /// <summary>Puts a pad away; its contents stay in it.</summary>
+    internal void HidePaddock(PaddockWindow window)
+    {
+        if (_app.PaddockManager.GetPaddock(window.ViewModel.Id) is not { } model)
+            return;
+
+        model.Hidden = true;
+        _app.PaddockManager.SaveLayout();
+        window.Hide();
+        UpdateZOrderTimer();
+    }
+
+    /// <summary>Brings back every pad hidden with its × button. Returns how many came back.</summary>
+    internal int ShowHiddenPads()
+    {
+        var hidden = _windows.Where(IsHiddenPad).ToList();
+        if (hidden.Count == 0)
+            return 0;
+
+        // They would stay invisible under a quick-hide, so lift that too.
+        if (_paddocksHidden)
+            SetPaddocksVisible(true);
+
+        using (_app.PaddockManager.DeferSave())
+        {
+            foreach (var window in hidden)
+            {
+                _app.PaddockManager.GetPaddock(window.ViewModel.Id)!.Hidden = false;
+                _app.PaddockManager.SaveLayout();
+                window.Show();
+                window.PinToDesktop();
+            }
+        }
+
+        UpdateZOrderTimer();
+        return hidden.Count;
+    }
+
     internal void SetPaddocksVisible(bool visible)
     {
         _paddocksHidden = !visible;
@@ -183,6 +229,10 @@ internal sealed class PaddockHost : IDisposable
         foreach (var window in _windows)
         {
             if (!visible && window.ViewModel.ExcludeFromQuickHide)
+                continue;
+
+            // A pad put away with its × stays away until "Show Hidden Pads".
+            if (visible && IsHiddenPad(window))
                 continue;
 
             if (visible)
@@ -363,10 +413,11 @@ internal sealed class PaddockHost : IDisposable
         var window = new PaddockWindow(viewModel, _app.ShellHookService);
 
         viewModel.RemoveRequested += () => RemovePaddock(window);
+        viewModel.HideRequested += () => HidePaddock(window);
 
         _windows.Add(window);
 
-        if (show && (!_paddocksHidden || viewModel.ExcludeFromQuickHide))
+        if (show && !model.Hidden && (!_paddocksHidden || viewModel.ExcludeFromQuickHide))
             window.Show();
 
         return window;

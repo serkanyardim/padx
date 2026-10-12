@@ -525,6 +525,13 @@ public class PaddockViewModel : INotifyPropertyChanged
         IsRolledUp = !IsRolledUp;
     }
 
+    /// <summary>Raised by the × button: put the pad away, contents and all.</summary>
+    public event Action? HideRequested;
+
+    public void Hide() => HideRequested?.Invoke();
+
+    public int IconCount => Icons.Count;
+
     public void Remove()
     {
         RemoveRequested?.Invoke();

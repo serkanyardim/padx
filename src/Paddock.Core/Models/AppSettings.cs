@@ -20,6 +20,9 @@ public class AppSettings
     /// <summary>Global shortcut that rolls every pad up, or expands them all again.</summary>
     public string RollUpAllHotkey { get; set; } = "Ctrl+Alt+R";
 
+    /// <summary>Global shortcut that brings back pads hidden with their × button.</summary>
+    public string ShowHiddenHotkey { get; set; } = "Ctrl+Alt+H";
+
     /// <summary>Global shortcut that opens the settings window.</summary>
     public string SettingsHotkey { get; set; } = "Ctrl+Alt+P";
 

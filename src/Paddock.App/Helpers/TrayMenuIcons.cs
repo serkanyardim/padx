@@ -16,6 +16,7 @@ internal static class TrayMenuIcons
     private static readonly Color Gray = Color.FromArgb(142, 142, 147);
     private static readonly Color Violet = Color.FromArgb(175, 82, 222);
     private static readonly Color Teal = Color.FromArgb(48, 176, 199);
+    private static readonly Color Amber = Color.FromArgb(255, 159, 10);
 
     /// <summary>Menu icon edge in device pixels for the current system DPI.</summary>
     public static int CurrentSize()
@@ -55,6 +56,16 @@ internal static class TrayMenuIcons
         g.DrawLine(pen, 4.6f, 5.4f, 11.4f, 5.4f);
         g.DrawLine(pen, 4.6f, 8f, 11.4f, 8f);
         g.DrawLine(pen, 4.6f, 10.6f, 11.4f, 10.6f);
+    });
+
+    public static Bitmap ShowHidden(int size) => Draw(size, Amber, g =>
+    {
+        // An eye.
+        using var pen = WhitePen(1.4f);
+        using var white = new SolidBrush(Color.White);
+        g.DrawArc(pen, 3.2f, 4.6f, 9.6f, 9.6f, 210, 120);
+        g.DrawArc(pen, 3.2f, 1.8f, 9.6f, 9.6f, 30, 120);
+        g.FillEllipse(white, 6.4f, 6.4f, 3.2f, 3.2f);
     });
 
     public static Bitmap Settings(int size) => Draw(size, Blue, g =>

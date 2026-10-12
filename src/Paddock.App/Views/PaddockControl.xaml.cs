@@ -281,11 +281,14 @@ public partial class PaddockControl : UserControl
 
     // --- Close ---
 
+    /// <summary>The × hides the pad; deleting is in the menu.</summary>
     private void CloseButton_Click(object sender, MouseButtonEventArgs e)
     {
-        ViewModel.Remove();
+        ViewModel.Hide();
         e.Handled = true;
     }
+
+    private void ContextMenu_Hide(object sender, RoutedEventArgs e) => ViewModel.Hide();
 
     // --- Dropping items in ---
 
@@ -463,8 +466,21 @@ public partial class PaddockControl : UserControl
         ViewModel.BeginRenameTitle();
     }
 
+    /// <summary>
+    /// Deletes the pad. Nothing is lost — its items go back to the desktop —
+    /// but rebuilding a full pad is tedious, so a pad with icons asks first.
+    /// An empty one simply goes.
+    /// </summary>
     private void ContextMenu_Remove(object sender, RoutedEventArgs e)
     {
+        var count = ViewModel.IconCount;
+
+        if (count > 0 && !DigitalDialog.Confirm("Delete pad",
+                $"Delete \"{ViewModel.Title}\"? Its {count} icon(s) go back to the desktop.", "DELETE"))
+        {
+            return;
+        }
+
         ViewModel.Remove();
     }
 

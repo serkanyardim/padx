@@ -219,6 +219,17 @@ public partial class App : Application
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
         menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
         menu.Items.Add(BuildConfigMenu(iconSize));
+
+        // Only there when something is hidden, and says how many.
+        var showHidden = new System.Windows.Forms.ToolStripMenuItem("Show Hidden Pads", Helpers.TrayMenuIcons.ShowHidden(iconSize));
+        showHidden.Click += (_, _) => ShowHiddenPads();
+        menu.Items.Add(showHidden);
+        menu.Opening += (_, _) =>
+        {
+            var hidden = Host?.HiddenPadCount ?? 0;
+            showHidden.Visible = hidden > 0;
+            showHidden.Text = $"Show Hidden Pads ({hidden})";
+        };
         menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
         menu.Items.Add("About...", Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
         menu.Items.Add("-");
@@ -338,6 +349,7 @@ public partial class App : Application
         {
             (settings.NewPadHotkey, CreateNewPaddock),
             (settings.RollUpAllHotkey, () => Host?.ToggleRollUpAll()),
+            (settings.ShowHiddenHotkey, ShowHiddenPads),
             (settings.SettingsHotkey, OpenSettings),
         };
 
@@ -421,6 +433,9 @@ public partial class App : Application
     }
 
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
+
+    /// <summary>Menu and hotkey: bring back pads hidden with ×. Does nothing when none are hidden.</summary>
+    private void ShowHiddenPads() => Host?.ShowHiddenPads();
 
     internal void RunAutoOrganize() => _ = AutoOrganizer?.RunAsync();
 

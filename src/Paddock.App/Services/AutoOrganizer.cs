@@ -599,7 +599,7 @@ internal sealed class AutoOrganizer
                 window.Opacity = 1;
 
             _app.DesktopIconService.NotifyShellOfDesktopChange();
-            await RevealAsync(restoredWindows, animate);
+            await RevealAsync(restoredWindows.Where(w => !Host.IsHiddenPad(w)).ToList(), animate);
             Log.Info($"Auto organize undone: {run.Items.Count} item(s), {restoredWindows.Count} pad(s) restored.");
         }
         catch (Exception ex)

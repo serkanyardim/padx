@@ -95,8 +95,8 @@
             <MenuItem Header="Exclude from Quick Hide" IsCheckable="True"
                       IsChecked="{Binding ExcludeFromQuickHide}" />
             <Separator />
-            <MenuItem Header="Remove Pad (icons return to desktop)"
-                      Click="ContextMenu_Remove" />
+            <MenuItem Header="Hide Pad" Click="ContextMenu_Hide" />
+            <MenuItem Header="Delete Pad" Click="ContextMenu_Remove" />
         </ContextMenu>
     </UserControl.ContextMenu>
 
@@ -235,7 +235,7 @@
                         VerticalAlignment="Top"
                         Margin="0,6,8,0"
                         Cursor="Hand"
-                        ToolTip="Remove pad — its icons go back to the desktop"
+                        ToolTip="Hide pad (tray menu or Ctrl+Alt+H brings it back)"
                         MouseLeftButtonDown="CloseButton_Click">
                     <TextBlock Text="&#xD7;"
                                FontSize="14"

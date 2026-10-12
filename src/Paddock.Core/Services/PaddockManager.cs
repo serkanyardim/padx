@@ -72,6 +72,7 @@ public class PaddockManager
             Locked = snapshot.Locked,
             IsRolledUp = snapshot.IsRolledUp,
             ExcludeFromQuickHide = snapshot.ExcludeFromQuickHide,
+            Hidden = snapshot.Hidden,
             SortBy = snapshot.SortBy,
             SortAscending = snapshot.SortAscending,
         };

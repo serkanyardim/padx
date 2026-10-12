@@ -14,6 +14,9 @@ public class PaddockModel
     public bool Locked { get; set; }
     public bool IsRolledUp { get; set; }
     public bool ExcludeFromQuickHide { get; set; }
+
+    /// <summary>Put away with its × button; brought back with "Show Hidden Pads".</summary>
+    public bool Hidden { get; set; }
     public SortField SortBy { get; set; } = SortField.Name;
     public bool SortAscending { get; set; } = true;
 }

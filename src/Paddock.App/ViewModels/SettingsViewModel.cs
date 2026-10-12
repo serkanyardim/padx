@@ -176,6 +176,12 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { S.RollUpAllHotkey = value; HotkeysChanged(); }
     }
 
+    public string ShowHiddenHotkey
+    {
+        get => S.ShowHiddenHotkey;
+        set { S.ShowHiddenHotkey = value; HotkeysChanged(); }
+    }
+
     public string SettingsHotkey
     {
         get => S.SettingsHotkey;
