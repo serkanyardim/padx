@@ -17,6 +17,9 @@ public class AppSettings
     /// <summary>Global shortcut that opens the settings window.</summary>
     public string SettingsHotkey { get; set; } = "Ctrl+Alt+P";
 
+    /// <summary>Ctrl + drag on empty desktop draws a new pad.</summary>
+    public bool CtrlDragCreatesPad { get; set; } = true;
+
     public bool SnapEnabled { get; set; } = true;
     public double IntelligentSpacing { get; set; } = 12;
     public PadAppearance Appearance { get; set; } = new();

@@ -60,6 +60,17 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool CtrlDragCreatesPad
+    {
+        get => S.CtrlDragCreatesPad;
+        set
+        {
+            S.CtrlDragCreatesPad = value;
+            CurrentApp.UpdateDesktopDrawing();
+            Changed();
+        }
+    }
+
     public bool SnapEnabled
     {
         get => S.SnapEnabled;

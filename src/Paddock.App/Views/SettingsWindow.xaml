@@ -102,6 +102,17 @@
                             <Border Style="{StaticResource D.Row}">
                                 <DockPanel>
                                     <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
+                                              VerticalAlignment="Center" IsChecked="{Binding CtrlDragCreatesPad}" />
+                                    <StackPanel>
+                                        <TextBlock Text="Ctrl + drag draws a pad" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="on empty desktop; on an icon, ctrl+drag still copies" Style="{StaticResource D.Hint}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <CheckBox DockPanel.Dock="Right" Style="{StaticResource D.Toggle}"
                                               VerticalAlignment="Center" IsChecked="{Binding SnapEnabled}" />
                                     <StackPanel>
                                         <TextBlock Text="Snap to edges" Style="{StaticResource D.Label}" />
@@ -208,6 +219,14 @@
 
                             <TextBlock Text="// MOUSE" Style="{StaticResource D.Section}" />
 
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">
+                                        <TextBlock Text="CTRL + DRAG DESKTOP" Style="{StaticResource ChipText}" />
+                                    </Border>
+                                    <TextBlock Text="Draw a new pad" Style="{StaticResource D.Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </Border>
                             <Border Style="{StaticResource D.Row}">
                                 <DockPanel>
                                     <Border DockPanel.Dock="Right" Style="{StaticResource Chip}">

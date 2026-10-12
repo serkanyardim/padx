@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows;
+using Point = System.Windows.Point;
 using Paddock.App.Services;
 using Paddock.Core.Services;
 using Paddock.Shell;
@@ -16,6 +17,13 @@ public partial class App : Application
     private HotkeyService? _hotkeys;
     private System.Threading.Mutex? _instanceMutex;
     private Views.SettingsWindow? _settingsWindow;
+
+    /// <summary>Smaller than this (DIPs) and a Ctrl + drag is treated as a slip, not a pad.</summary>
+    private const double MinDrawnPadSize = 48;
+
+    private DesktopDragService? _desktopDrag;
+    private Views.DrawFeedbackWindow? _drawFeedback;
+    private Point _drawStart;
 
     public SettingsService Settings { get; private set; } = null!;
     public PaddockManager PaddockManager { get; private set; } = null!;
@@ -69,6 +77,7 @@ public partial class App : Application
         Host.Start();
 
         InitializeHotkeys();
+        UpdateDesktopDrawing();
 
         if (Host.PaddockCount == 0)
             ShowNoPaddocksHint();
@@ -235,6 +244,65 @@ public partial class App : Application
 
     internal void ResumeHotkeys() => RegisterHotkeys();
 
+    /// <summary>Starts or stops the Ctrl + drag gesture to match the setting.</summary>
+    internal void UpdateDesktopDrawing()
+    {
+        if (Settings.Settings.CtrlDragCreatesPad)
+        {
+            if (_desktopDrag is not null)
+                return;
+
+            _desktopDrag = new DesktopDragService();
+            _desktopDrag.DrawStarted += (x, y) => Dispatcher.InvokeAsync(() => BeginDesktopDraw(x, y));
+            _desktopDrag.DrawMoved += (x, y) => Dispatcher.InvokeAsync(() => UpdateDesktopDraw(x, y));
+            _desktopDrag.DrawCompleted += (x1, y1, x2, y2) => Dispatcher.InvokeAsync(() => CompleteDesktopDraw(x2, y2));
+            _desktopDrag.DrawCancelled += () => Dispatcher.InvokeAsync(EndDesktopDraw);
+            _desktopDrag.Start();
+        }
+        else
+        {
+            _desktopDrag?.Dispose();
+            _desktopDrag = null;
+            EndDesktopDraw();
+        }
+    }
+
+    private static Point ToDips(int x, int y)
+    {
+        var scale = Helpers.ScreenHelper.DipScale;
+        return new Point(x / scale, y / scale);
+    }
+
+    private void BeginDesktopDraw(int x, int y)
+    {
+        EndDesktopDraw();
+        _drawStart = ToDips(x, y);
+        _drawFeedback = new Views.DrawFeedbackWindow(Settings.Settings.Appearance.CornerRadius);
+        _drawFeedback.Span(_drawStart, _drawStart);
+        _drawFeedback.Show();
+    }
+
+    private void UpdateDesktopDraw(int x, int y) => _drawFeedback?.Span(_drawStart, ToDips(x, y));
+
+    /// <summary>Turns the drawn rectangle into a pad, unless it was too small to mean one.</summary>
+    private void CompleteDesktopDraw(int x, int y)
+    {
+        if (_drawFeedback is null)
+            return;
+
+        var area = new Rect(_drawStart, ToDips(x, y));
+        EndDesktopDraw();
+
+        if (area.Width >= MinDrawnPadSize && area.Height >= MinDrawnPadSize)
+            Host?.CreatePaddock(area);
+    }
+
+    private void EndDesktopDraw()
+    {
+        _drawFeedback?.Close();
+        _drawFeedback = null;
+    }
+
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
 
     private void TogglePaddocks() => Host?.ToggleQuickHide();
@@ -367,6 +435,7 @@ public partial class App : Application
         PaddockManager?.SaveLayout();
 
         _hotkeys?.Dispose();
+        _desktopDrag?.Dispose();
         Host?.Dispose();
         DesktopIconService?.Dispose();
         IconExtractor?.Dispose();
