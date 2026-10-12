@@ -367,22 +367,60 @@ internal sealed class AutoOrganizer
         var workArea = SystemParameters.WorkArea;
         var bounds = new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height);
         var gap = Math.Max(8, settings.IntelligentSpacing);
-        var rects = new List<PlacedRect>();
+        var hasSystem = ordered.Count > 0 && ordered[0].Key == AutoCategory.System;
+        var counts = ordered.Select(g => g.Value.Count).ToList();
 
-        // The System pad always takes the top-left corner, whichever side the rest start from.
-        if (ordered.Count > 0 && ordered[0].Key == AutoCategory.System)
-        {
-            var system = AutoLayoutPlanner.Place([sizes[0]], bounds, obstacles, gap, AutoStartCorner.TopLeft)[0];
-            rects.Add(system);
-            obstacles.Add(system);
-            sizes.RemoveAt(0);
-        }
+        // Preferred: a tidy table (aligned tops, aligned columns, even gaps).
+        var rects = PlanTable(counts, sizes, metrics, bounds, gap, hasSystem, auto);
 
-        rects.AddRange(AutoLayoutPlanner.Place(sizes, bounds, obstacles, gap, auto.StartCorner));
+        // Fallback when the table cannot fit, or would cover a locked pad.
+        if (rects is null || rects.Any(r => obstacles.Any(o => r.Intersects(o, gap / 2))))
+            rects = PlanFreeform(sizes, bounds, obstacles, gap, hasSystem, auto.StartCorner);
 
         var colors = PickColors(ordered.Select(g => g.Key).ToList(), auto.ColorMode);
 
         return new Plan(ordered.Select((g, i) => (g.Key, g.Value, rects[i], colors[i])).ToList());
+    }
+
+    /// <summary>
+    /// The table layout. The System pad always sits top-left: as the table's
+    /// first cell when filling from the left, or on its own in the corner
+    /// with the table built from the right.
+    /// </summary>
+    private static List<PlacedRect>? PlanTable(
+        List<int> counts, List<(double Width, double Height)> sizes, PadMetrics metrics,
+        LayoutBounds bounds, double gap, bool hasSystem, AutoModeSettings auto)
+    {
+        if (!hasSystem || auto.StartCorner == AutoStartCorner.TopLeft)
+            return AutoLayoutPlanner.PlanGrid(counts, auto.MaxIconsPerRow, metrics, bounds, gap, auto.StartCorner, keepFirst: hasSystem);
+
+        var system = new PlacedRect(bounds.Left + gap, bounds.Top + gap, sizes[0].Width, sizes[0].Height);
+        var rest = AutoLayoutPlanner.PlanGrid(counts.Skip(1).ToList(), auto.MaxIconsPerRow, metrics, bounds, gap, AutoStartCorner.TopRight, keepFirst: false);
+
+        if (rest is null || rest.Any(r => r.Intersects(system, gap / 2)))
+            return null;
+
+        return [system, .. rest];
+    }
+
+    /// <summary>The older first-free-spot packing; it can flow around locked pads.</summary>
+    private static List<PlacedRect> PlanFreeform(
+        List<(double Width, double Height)> sizes, LayoutBounds bounds, List<PlacedRect> obstacles,
+        double gap, bool hasSystem, AutoStartCorner corner)
+    {
+        var rects = new List<PlacedRect>();
+        var remaining = sizes.ToList();
+
+        if (hasSystem)
+        {
+            var system = AutoLayoutPlanner.Place([remaining[0]], bounds, obstacles, gap, AutoStartCorner.TopLeft)[0];
+            rects.Add(system);
+            obstacles = [.. obstacles, system];
+            remaining.RemoveAt(0);
+        }
+
+        rects.AddRange(AutoLayoutPlanner.Place(remaining, bounds, obstacles, gap, corner));
+        return rects;
     }
 
     /// <summary>Takes the old pads apart and builds the planned ones, keeping every item's path current.</summary>

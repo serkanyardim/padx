@@ -154,6 +154,72 @@ public class AutoLayoutPlannerTests
                 Assert.False(rects[i].Intersects(rects[j], 0));
     }
 
+    private static readonly int[] MixedCounts = [3, 2, 13, 2, 24, 7, 9, 19, 4, 2, 31, 2];
+    private static readonly LayoutBounds WideScreen = LayoutBounds.FromSize(2560, 1400);
+
+    [Fact]
+    public void PlanGrid_AlignsTopsInRowsAndEdgesInColumns()
+    {
+        var rects = AutoLayoutPlanner.PlanGrid(MixedCounts, 6, Metrics, WideScreen, 12, AutoStartCorner.TopLeft, keepFirst: true)!;
+
+        Assert.NotNull(rects);
+
+        // Every top is shared by at least one other pad, or is the first row — i.e. rows line up.
+        var tops = rects.Select(r => r.Y).Distinct().OrderBy(y => y).ToList();
+        var lefts = rects.Select(r => r.X).Distinct().ToList();
+        Assert.True(tops.Count < rects.Count);
+        Assert.True(lefts.Count < rects.Count);
+
+        // Pads sharing a left edge share a width.
+        foreach (var column in rects.GroupBy(r => r.X))
+            Assert.Single(column.Select(r => r.Width).Distinct());
+
+        // Nothing overlaps, everything is on screen, and gaps are at least the spacing.
+        for (var i = 0; i < rects.Count; i++)
+        {
+            Assert.True(rects[i].Right <= WideScreen.Right && rects[i].Bottom <= WideScreen.Bottom);
+            for (var j = i + 1; j < rects.Count; j++)
+                Assert.False(rects[i].Intersects(rects[j], 11.9));
+        }
+    }
+
+    [Fact]
+    public void PlanGrid_KeepsTheFirstPadInTheTopLeftCell()
+    {
+        var rects = AutoLayoutPlanner.PlanGrid(MixedCounts, 6, Metrics, WideScreen, 12, AutoStartCorner.TopLeft, keepFirst: true)!;
+
+        Assert.Equal(12, rects[0].X);
+        Assert.Equal(12, rects[0].Y);
+    }
+
+    [Fact]
+    public void PlanGrid_WidenedPadsReflowAndNeverScroll()
+    {
+        var rects = AutoLayoutPlanner.PlanGrid([2, 12], 6, Metrics, LayoutBounds.FromSize(600, 2000), 12, AutoStartCorner.TopLeft, keepFirst: false)!;
+
+        // One column (screen is narrow): the 2-icon pad is as wide as the 6-wide one, and one icon row tall.
+        Assert.Equal(rects[0].Width, rects[1].Width);
+        Assert.Equal(84 + 46, rects[0].Height);
+        Assert.Equal(2 * 84 + 46, rects[1].Height);
+    }
+
+    [Fact]
+    public void PlanGrid_FitsARealDesktopOnFullHd_ByNarrowingAColumn()
+    {
+        // System, Design, Media, Installers, Other, Folders, Dev, Remote, Documents, Browsers, Utilities, Apps.
+        int[] counts = [3, 2, 11, 2, 2, 23, 7, 9, 19, 4, 2, 27];
+        var screen = LayoutBounds.FromSize(1920, 1040);
+
+        var rects = AutoLayoutPlanner.PlanGrid(counts, 6, Metrics, screen, 12, AutoStartCorner.TopLeft, keepFirst: true);
+
+        Assert.NotNull(rects);
+        Assert.All(rects, r => Assert.True(r.Right <= screen.Right - 12 && r.Bottom <= screen.Bottom - 12));
+    }
+
+    [Fact]
+    public void PlanGrid_ReturnsNullWhenNoTableFits()
+        => Assert.Null(AutoLayoutPlanner.PlanGrid(MixedCounts, 6, Metrics, LayoutBounds.FromSize(800, 600), 12, AutoStartCorner.TopLeft, keepFirst: true));
+
     [Fact]
     public void Place_FromTopRight_StartsAtTheRightEdge()
     {
