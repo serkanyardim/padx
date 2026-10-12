@@ -247,14 +247,21 @@ public partial class App : Application
 
     private Views.ConfigsWindow? _configsWindow;
 
-    /// <summary>Shows the configs window, or brings the open one to the front.</summary>
-    internal void OpenConfigs()
+    /// <summary>
+    /// Shows the configs window, or brings the open one to the front. From
+    /// "Save Config" it opens ready to type a name (or pick one to overwrite).
+    /// </summary>
+    internal void OpenConfigs(bool saving = false)
     {
         if (_configsWindow is null)
         {
-            _configsWindow = new Views.ConfigsWindow();
+            _configsWindow = new Views.ConfigsWindow(saving);
             _configsWindow.Closed += (_, _) => _configsWindow = null;
             _configsWindow.Show();
+        }
+        else if (saving)
+        {
+            _configsWindow.PrepareToSave();
         }
 
         _configsWindow.Activate();
@@ -262,44 +269,7 @@ public partial class App : Application
 
     internal ConfigManager Configs { get; private set; } = null!;
 
-    internal void SaveConfig()
-    {
-        var name = ConfigStore.DefaultName(DateTime.Now);
-
-        while (true)
-        {
-            var answer = Views.DigitalDialog.Prompt("Save config",
-                "Saves every setting, every pad and what is in each pad under this name.", name, confirmText: "SAVE");
-            if (answer is null)
-                return;
-
-            name = answer.Trim();
-            if (ConfigStore.Validate(name) is { } error)
-            {
-                Views.DigitalDialog.Inform("Save config", error);
-                continue;
-            }
-
-            if (Configs.Store.Exists(name)
-                && !Views.DigitalDialog.Confirm("Save config", $"\"{name}\" already exists. Replace it?", "REPLACE"))
-            {
-                continue;
-            }
-
-            break;
-        }
-
-        try
-        {
-            Configs.Save(name);
-            Views.DigitalDialog.Inform("Save config", $"Saved as \"{name}\".");
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Could not save config '{name}'.", ex);
-            Views.DigitalDialog.Inform("Save config", $"Could not save: {ex.Message}");
-        }
-    }
+    internal void SaveConfig() => OpenConfigs(saving: true);
 
     internal void LoadConfig(string name, bool confirm = true)
     {

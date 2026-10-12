@@ -14,10 +14,81 @@ public partial class ConfigsWindow : Window
         public Visibility StarVisibility => IsStartup ? Visibility.Visible : Visibility.Hidden;
     }
 
-    public ConfigsWindow()
+    private readonly bool _saving;
+    private bool _refreshing;
+
+    /// <param name="saving">
+    /// Opened from "Save Config": the name box has focus and clicking a saved
+    /// config copies its name in, ready to overwrite it.
+    /// </param>
+    public ConfigsWindow(bool saving = false)
     {
+        _saving = saving;
         InitializeComponent();
+
+        NameBox.Text = Core.Services.ConfigStore.DefaultName(DateTime.Now);
         Refresh();
+
+        Loaded += (_, _) =>
+        {
+            if (_saving)
+            {
+                NameBox.Focus();
+                NameBox.SelectAll();
+            }
+            else
+            {
+                List.Focus();
+            }
+        };
+    }
+
+    /// <summary>Switches an already open window into save mode.</summary>
+    public void PrepareToSave()
+    {
+        NameBox.Text = Core.Services.ConfigStore.DefaultName(DateTime.Now);
+        NameBox.Focus();
+        NameBox.SelectAll();
+    }
+
+    private void Save_Click(object sender, RoutedEventArgs e) => SaveAs(NameBox.Text);
+
+    private void NameBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            SaveAs(NameBox.Text);
+            e.Handled = true;
+        }
+    }
+
+    private void SaveAs(string name)
+    {
+        name = name.Trim();
+
+        if (Core.Services.ConfigStore.Validate(name) is { } error)
+        {
+            DigitalDialog.Inform("Save config", error);
+            return;
+        }
+
+        if (CurrentApp.Configs.Store.Exists(name)
+            && !DigitalDialog.Confirm("Save config", $"\"{name}\" already exists. Overwrite it with the current layout?", "OVERWRITE"))
+        {
+            return;
+        }
+
+        try
+        {
+            CurrentApp.Configs.Save(name);
+            Refresh(name);
+            DigitalDialog.Inform("Save config", $"Saved as \"{name}\".");
+        }
+        catch (Exception ex)
+        {
+            Core.Services.Log.Error($"Could not save config '{name}'.", ex);
+            DigitalDialog.Inform("Save config", $"Could not save: {ex.Message}");
+        }
     }
 
     private static App CurrentApp => (App)Application.Current;
@@ -31,8 +102,10 @@ public partial class ConfigsWindow : Window
             .Select(c => new Row(c.Name, c.SavedAt, string.Equals(c.Name, startup, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
+        _refreshing = true;
         List.ItemsSource = rows;
         List.SelectedItem = rows.FirstOrDefault(r => r.Name == select) ?? rows.FirstOrDefault();
+        _refreshing = false;
         EmptyHint.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         StartupHint.Text = startup is null
@@ -50,7 +123,14 @@ public partial class ConfigsWindow : Window
         LoadButton.Opacity = DeleteButton.Opacity = StartupButton.Opacity = selected is null ? 0.4 : 1;
     }
 
-    private void List_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateButtons();
+    private void List_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateButtons();
+
+        // In save mode a click on a saved config means "overwrite this one".
+        if (_saving && !_refreshing && e.AddedItems.Count > 0 && Selected is { } row)
+            NameBox.Text = row.Name;
+    }
 
     private void List_MouseDoubleClick(object sender, MouseButtonEventArgs e) => LoadSelected();
 
@@ -101,7 +181,7 @@ public partial class ConfigsWindow : Window
     {
         if (e.Key == Key.Escape)
             Close();
-        else if (e.Key == Key.Enter)
+        else if (e.Key == Key.Enter && !NameBox.IsKeyboardFocused)
             LoadSelected();
     }
 }
