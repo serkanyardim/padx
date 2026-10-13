@@ -43,6 +43,71 @@ public partial class AboutWindow : Window
         e.Handled = true;
     }
 
+    // --- Updates ---
+
+    private Core.Services.ReleaseInfo? _latest;
+
+    private async void Check_Click(object sender, RoutedEventArgs e)
+    {
+        CheckButton.IsEnabled = false;
+        InstallButton.Visibility = Visibility.Collapsed;
+        UpdateText.Text = "> updates     checking github…";
+
+        _latest = await Services.Updater.GetLatestAsync();
+        CheckButton.IsEnabled = true;
+
+        var current = Services.Updater.CurrentVersion;
+        if (_latest is null)
+        {
+            UpdateText.Text = "> updates     couldn't reach github — try again later";
+        }
+        else if (Core.Services.UpdateCheck.IsNewer(_latest.Version, current))
+        {
+            UpdateText.Text = $"> updates     v{_latest.Version.ToString(3)} available";
+            UpdateText.Foreground = (System.Windows.Media.Brush)FindResource("D.Accent");
+            InstallButton.Visibility = _latest.SetupUrl is null ? Visibility.Collapsed : Visibility.Visible;
+            CheckButton.Content = "RELEASE NOTES";
+            CheckButton.Click -= Check_Click;
+            CheckButton.Click += (_, _) => Open(_latest.PageUrl);
+        }
+        else
+        {
+            UpdateText.Text = $"> updates     ✓ up to date (v{current.ToString(3)})";
+        }
+    }
+
+    /// <summary>Downloads the new installer, starts it and steps aside so it can replace padx.</summary>
+    private async void Install_Click(object sender, RoutedEventArgs e)
+    {
+        if (_latest is null)
+            return;
+
+        InstallButton.IsEnabled = CheckButton.IsEnabled = false;
+        var progress = new Progress<int>(p => UpdateText.Text = $"> updates     downloading v{_latest.Version.ToString(3)}… {p}%");
+
+        if (await Services.Updater.DownloadAndRunAsync(_latest, progress))
+        {
+            // The installer closes and replaces padx; leave the way clear.
+            Application.Current.Shutdown();
+            return;
+        }
+
+        UpdateText.Text = "> updates     download failed — get it from the release page";
+        InstallButton.IsEnabled = CheckButton.IsEnabled = true;
+    }
+
+    private static void Open(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Core.Services.Log.Warn($"Could not open {url}: {ex.Message}");
+        }
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private void Window_KeyDown(object sender, KeyEventArgs e)

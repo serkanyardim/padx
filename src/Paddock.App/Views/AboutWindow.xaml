@@ -159,6 +159,20 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Updates: only when asked, never on its own -->
+                <DockPanel Margin="0,14,0,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button x:Name="InstallButton" Style="{StaticResource D.Button}" Content="INSTALL UPDATE"
+                                Foreground="{StaticResource D.Accent}" Margin="0,0,8,0" Visibility="Collapsed"
+                                Click="Install_Click" />
+                        <Button x:Name="CheckButton" Style="{StaticResource D.Button}" Content="CHECK FOR UPDATES"
+                                Click="Check_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="UpdateText" VerticalAlignment="Center" FontFamily="{StaticResource D.Mono}"
+                               FontSize="11" Foreground="{StaticResource D.TextDim}" TextWrapping="Wrap"
+                               Text="&gt; updates     not checked" />
+                </DockPanel>
+
                 <!-- What it does -->
                 <TextBlock Text="// FEATURES" Style="{StaticResource D.Section}" Margin="0,20,0,8" />
                 <WrapPanel>
@@ -170,6 +184,9 @@
                     <Border Style="{StaticResource Chip}"><TextBlock Text="CTRL + DRAG" Style="{StaticResource ChipText}" /></Border>
                     <Border Style="{StaticResource Chip}"><TextBlock Text="GLOBAL HOTKEYS" Style="{StaticResource ChipText}" /></Border>
                     <Border Style="{StaticResource Chip}"><TextBlock Text="WIN+D PROOF" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="SNAP GUIDES" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="PER-SCREEN LAYOUTS" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="ARRANGE PADS" Style="{StaticResource ChipText}" /></Border>
                 </WrapPanel>
 
                 <TextBlock Margin="0,18,0,0" FontFamily="{StaticResource D.Mono}" FontSize="9.5"
