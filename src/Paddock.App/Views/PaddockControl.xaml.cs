@@ -535,7 +535,7 @@ public partial class PaddockControl : UserControl
         var count = ViewModel.IconCount;
 
         if (count > 0 && !DigitalDialog.Confirm("Delete pad",
-                $"Delete \"{ViewModel.Title}\"? Its {count} icon(s) go back to the desktop.", "DELETE"))
+                Lang.F("Delete \"{0}\"? Its {1} icon(s) go back to the desktop.", ViewModel.Title, count), "DELETE"))
         {
             return;
         }
@@ -562,28 +562,22 @@ public partial class PaddockControl : UserControl
         }
 
         var items = DesktopItemFilter.Filter(CurrentApp.DesktopIconService.GetDesktopItems(), category);
-        var description = DesktopItemFilter.Describe(category);
+        var description = Lang.T(DesktopItemFilter.Describe(category));
 
         if (items.Count == 0)
         {
-            MessageBox.Show(
-                $"There are no {description} on the desktop to collect.",
-                "padx",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            DigitalDialog.Inform("Fill from Desktop", Lang.F("There are no {0} on the desktop to collect.", description));
             return;
         }
 
-        var answer = MessageBox.Show(
-            $"Move {items.Count} {description} into \"{ViewModel.Title}\"?\n\n" +
-            "They will be moved off the desktop into this pad's folder, and " +
-            "go back to the desktop if you drag them out or remove the pad.",
-            "padx",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Question);
-
-        if (answer != MessageBoxResult.OK)
+        if (!DigitalDialog.Confirm("Fill from Desktop",
+                Lang.F("Move {0} {1} into \"{2}\"?", items.Count, description, ViewModel.Title) + "\n\n" +
+                Lang.T("They will be moved off the desktop into this pad's folder, and " +
+                       "go back to the desktop if you drag them out or remove the pad."),
+                "MOVE"))
+        {
             return;
+        }
 
         ViewModel.AddIcons(items);
         CurrentApp.DesktopIconService.NotifyShellOfDesktopChange();

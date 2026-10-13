@@ -69,7 +69,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         {
             var screen = Helpers.ScreenHelper.MainResolution();
             var name = CurrentApp.Configs.DefaultFor(screen);
-            return $"{ConfigStore.Display(screen)} · {(name is null ? "last session" : "★ " + name)}";
+            return $"{ConfigStore.Display(screen)} · {(name is null ? Lang.T("last session") : "★ " + name)}";
         }
     }
 
@@ -100,6 +100,32 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         get => S.RollUpExpandMode;
         set { S.RollUpExpandMode = value; Changed(); }
+    }
+
+    /// <summary>"auto", "en" or "tr". Switching restarts padx, once the user agrees.</summary>
+    public string Language
+    {
+        get => S.Language;
+        set
+        {
+            if (S.Language == value)
+                return;
+
+            S.Language = value;
+            Changed();
+
+            var wanted = value == Lang.Auto ? Lang.ForWindows() : value;
+            if (wanted == Lang.Code)
+                return;
+
+            // After the click has finished: the dialog would otherwise interrupt the radio button.
+            Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                FlushSave();
+                if (Views.DigitalDialog.Confirm("Language", "padx restarts to switch the language.", "RESTART", "LATER"))
+                    CurrentApp.Restart();
+            });
+        }
     }
 
     /// <summary>"single" or "double".</summary>
@@ -183,11 +209,11 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    public string SearchOpacityLabel => IsSearchColor ? "Opacity" : "Glass tint";
+    public string SearchOpacityLabel => Lang.T(IsSearchColor ? "Opacity" : "Glass tint");
 
-    public string SearchOpacityHint => IsSearchColor
+    public string SearchOpacityHint => Lang.T(IsSearchColor
         ? "how solid the box is"
-        : "how dark the glass is when in use; at rest it is half that";
+        : "how dark the glass is when in use; at rest it is half that");
 
     public bool SearchOffersWeb
     {
@@ -522,7 +548,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         var failed = CurrentApp.RegisterHotkeys();
         HotkeyStatus = failed.Count == 0
             ? string.Empty
-            : $"! In use by another app: {string.Join(", ", failed)}";
+            : Lang.F("! In use by another app: {0}", string.Join(", ", failed));
 
         Changed(name);
     }

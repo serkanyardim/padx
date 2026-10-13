@@ -16,6 +16,12 @@ public class AppSettings
     /// startup and whenever the main screen changes to that resolution.
     /// </summary>
     public Dictionary<string, string> ResolutionDefaults { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// "auto" (Turkish on a Turkish Windows, English otherwise), "en", or a
+    /// language file in lang/ such as "tr".
+    /// </summary>
+    public string Language { get; set; } = "auto";
+
     public string GlobalTheme { get; set; } = "dark";
     public bool QuickHideEnabled { get; set; } = true;
     public string QuickHideHotkey { get; set; } = "Ctrl+F12";

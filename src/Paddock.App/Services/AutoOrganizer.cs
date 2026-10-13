@@ -123,18 +123,19 @@ internal sealed class AutoOrganizer
         }
 
         var details = new List<string>();
-        if (hidden > 0) details.Add($"{hidden} hidden");
-        if (empty > 0) details.Add($"{empty} empty, which will be removed");
+        if (hidden > 0) details.Add(Lang.F("{0} hidden", hidden));
+        if (empty > 0) details.Add(Lang.F("{0} empty, which will be removed", empty));
         var padsLine = rebuild.Count == 0
             ? string.Empty
-            : $"{rebuild.Count} pad(s){(details.Count > 0 ? $" ({string.Join(", ", details)})" : string.Empty)} will be taken apart and rebuilt by category, together with ";
+            : Lang.F("{0} pad(s){1} will be taken apart and rebuilt by category, together with ",
+                rebuild.Count, details.Count > 0 ? $" ({string.Join(", ", details)})" : string.Empty);
 
         if (rebuild.Count > 0 && !DigitalDialog.Confirm("Auto organize",
                 padsLine +
-                $"{desktopItems.Count + publicItems.Count} item(s) from the desktop.\n\n" +
-                "Locked pads that are visible and not empty stay exactly as they are. You can revert afterwards." +
+                Lang.F("{0} item(s) from the desktop.", desktopItems.Count + publicItems.Count) + "\n\n" +
+                Lang.T("Locked pads that are visible and not empty stay exactly as they are. You can revert afterwards.") +
                 (publicItems.Count > 0
-                    ? $"\n\n{publicItems.Count} shortcut(s) are on the all-users desktop; Windows will ask for administrator permission to move them."
+                    ? "\n\n" + Lang.F("{0} shortcut(s) are on the all-users desktop; Windows will ask for administrator permission to move them.", publicItems.Count)
                     : string.Empty),
                 "ORGANIZE"))
         {
@@ -231,7 +232,7 @@ internal sealed class AutoOrganizer
         Log.Info($"Auto organize: {total} item(s) into {created.Count} pad(s); {snapshot.Count} pad(s) rebuilt.");
 
         _pending = new PendingRun(snapshot, items, createdIds);
-        ShowBar($"{created.Count} pads · {total} icons");
+        ShowBar(Lang.F("{0} pads · {1} icons", created.Count, total));
     }
 
     /// <summary>
@@ -482,7 +483,7 @@ internal sealed class AutoOrganizer
 
             foreach (var (category, items, rect, color) in plan.Pads)
             {
-                var model = Manager.CreatePaddock(IconCategorizer.Title(category), rect.X, rect.Y, rect.Width, rect.Height);
+                var model = Manager.CreatePaddock(Lang.T(IconCategorizer.Title(category)), rect.X, rect.Y, rect.Width, rect.Height);
                 createdIds.Add(model.Id);
                 model.TitleVisibility = TitleVisibility.Always;
                 model.Locked = auto.LockCreatedPads;
@@ -540,7 +541,8 @@ internal sealed class AutoOrganizer
 
         // The System pad (built-in icons) keeps its top-left place.
         var system = movable.FirstOrDefault(p =>
-            string.Equals(p.Title, IconCategorizer.Title(AutoCategory.System), StringComparison.OrdinalIgnoreCase));
+            string.Equals(p.Title, IconCategorizer.Title(AutoCategory.System), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(p.Title, Lang.T(IconCategorizer.Title(AutoCategory.System)), StringComparison.OrdinalIgnoreCase));
         if (system is not null)
         {
             movable.Remove(system);

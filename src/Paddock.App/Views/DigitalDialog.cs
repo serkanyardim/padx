@@ -16,6 +16,12 @@ internal sealed class DigitalDialog : Window
 
     private DigitalDialog(string title, string message, string confirmText, string? cancelText, string? inputText = null, int selectLength = -1)
     {
+        // Callers pass English; fixed texts are translated here, built ones arrive translated.
+        title = Helpers.Lang.T(title);
+        message = Helpers.Lang.T(message);
+        confirmText = Helpers.Lang.T(confirmText);
+        cancelText = cancelText is null ? null : Helpers.Lang.T(cancelText);
+
         Title = "padx";
         Width = 420;
         SizeToContent = SizeToContent.Height;
@@ -45,7 +51,7 @@ internal sealed class DigitalDialog : Window
         header.Children.Add(new Border { Width = 8, Height = 8, Background = Brush("D.Accent"), Margin = new Thickness(0, 0, 10, 0) });
         header.Children.Add(new TextBlock
         {
-            Text = title.ToUpperInvariant(),
+            Text = Helpers.Lang.Upper(title),
             FontFamily = (FontFamily)FindResource("D.Mono"),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,

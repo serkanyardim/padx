@@ -21,6 +21,11 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
   </ItemGroup>
 
+  <!-- Translations, built in (lang/tr.json → Paddock.App.lang.tr.json) -->
+  <ItemGroup>
+    <EmbeddedResource Include="lang\*.json" LogicalName="Paddock.App.lang.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Paddock.Core\Paddock.Core.csproj" />
     <ProjectReference Include="..\Paddock.Shell\Paddock.Shell.csproj" />

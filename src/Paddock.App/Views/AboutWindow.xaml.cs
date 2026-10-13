@@ -19,7 +19,7 @@ public partial class AboutWindow : Window
 
         var app = (App)Application.Current;
         var pads = app.PaddockManager.GetPaddocks();
-        StatusText.Text = $"online · {pads.Count} pads · {pads.Sum(p => p.Icons.Count)} icons";
+        StatusText.Text = Helpers.Lang.F("online · {0} pads · {1} icons", pads.Count, pads.Sum(p => p.Icons.Count));
     }
 
     /// <summary>"Windows 11 (26200)" — build 22000 and up is Windows 11.</summary>
@@ -51,7 +51,7 @@ public partial class AboutWindow : Window
     {
         CheckButton.IsEnabled = false;
         InstallButton.Visibility = Visibility.Collapsed;
-        UpdateText.Text = "> updates     checking github…";
+        UpdateText.Text = "> updates     " + Helpers.Lang.T("checking github…");
 
         _latest = await Services.Updater.GetLatestAsync();
         CheckButton.IsEnabled = true;
@@ -59,20 +59,20 @@ public partial class AboutWindow : Window
         var current = Services.Updater.CurrentVersion;
         if (_latest is null)
         {
-            UpdateText.Text = "> updates     couldn't reach github — try again later";
+            UpdateText.Text = "> updates     " + Helpers.Lang.T("couldn't reach github — try again later");
         }
         else if (Core.Services.UpdateCheck.IsNewer(_latest.Version, current))
         {
-            UpdateText.Text = $"> updates     v{_latest.Version.ToString(3)} available";
+            UpdateText.Text = "> updates     " + Helpers.Lang.F("v{0} available", _latest.Version.ToString(3));
             UpdateText.Foreground = (System.Windows.Media.Brush)FindResource("D.Accent");
             InstallButton.Visibility = _latest.SetupUrl is null ? Visibility.Collapsed : Visibility.Visible;
-            CheckButton.Content = "RELEASE NOTES";
+            CheckButton.Content = Helpers.Lang.T("RELEASE NOTES");
             CheckButton.Click -= Check_Click;
             CheckButton.Click += (_, _) => Open(_latest.PageUrl);
         }
         else
         {
-            UpdateText.Text = $"> updates     ✓ up to date (v{current.ToString(3)})";
+            UpdateText.Text = "> updates     " + Helpers.Lang.F("✓ up to date (v{0})", current.ToString(3));
         }
     }
 
@@ -83,7 +83,7 @@ public partial class AboutWindow : Window
             return;
 
         InstallButton.IsEnabled = CheckButton.IsEnabled = false;
-        var progress = new Progress<int>(p => UpdateText.Text = $"> updates     downloading v{_latest.Version.ToString(3)}… {p}%");
+        var progress = new Progress<int>(p => UpdateText.Text = "> updates     " + Helpers.Lang.F("downloading v{0}… {1}%", _latest.Version.ToString(3), p));
 
         if (await Services.Updater.DownloadAndRunAsync(_latest, progress))
         {
@@ -92,7 +92,7 @@ public partial class AboutWindow : Window
             return;
         }
 
-        UpdateText.Text = "> updates     download failed — get it from the release page";
+        UpdateText.Text = "> updates     " + Helpers.Lang.T("download failed — get it from the release page");
         InstallButton.IsEnabled = CheckButton.IsEnabled = true;
     }
 

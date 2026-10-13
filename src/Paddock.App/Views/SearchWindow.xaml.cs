@@ -663,7 +663,7 @@ public sealed class SearchResult(SearchItem item, IconViewModel? icon, bool padH
     public static SearchResult Web(string query, string? country)
     {
         var domain = WebSearch.GoogleDomain(country);
-        var item = new SearchItem(string.Empty, $"Search Google for “{query}”", null, domain);
+        var item = new SearchItem(string.Empty, Lang.F("Search Google for “{0}”", query), null, domain);
         return new SearchResult(item, null, false, WebSearch.GoogleUrl(query, country));
     }
 

@@ -139,7 +139,7 @@ internal sealed class PaddockHost : IDisposable
     internal void CreatePaddock(Rect screenArea)
     {
         var model = _app.PaddockManager.CreatePaddock(
-            title: "New Pad",
+            title: Helpers.Lang.T("New Pad"),
             x: screenArea.X,
             y: screenArea.Y,
             width: screenArea.Width,

@@ -91,6 +91,7 @@ internal sealed class ConfigManager
             config.Settings.StartWithWindows = current.StartWithWindows;
             config.Settings.ResolutionDefaults = current.ResolutionDefaults;
             config.Settings.IconOpenMode = current.IconOpenMode;
+            config.Settings.Language = current.Language;
             config.Settings.SearchHotkey = current.SearchHotkey;
             config.Settings.SearchBoxAlwaysVisible = current.SearchBoxAlwaysVisible;
             config.Settings.SearchBoxPosition = current.SearchBoxPosition;

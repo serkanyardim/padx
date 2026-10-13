@@ -42,6 +42,12 @@ runs it; **Find place** brings its pad forward and blinks the icon. The last row
 Google — your country's Google, from the Windows region. Keep the box always on screen at the
 top or bottom (pads stay out of its strip), in a colour of your choice or as see-through glass.
 
+**Languages** — English and Türkçe. By default padx follows Windows (Turkish Windows → Türkçe,
+anything else → English); change it in **Settings → General → Language**. A translation is a
+plain JSON file of *"English text": "translation"* pairs — see
+[`src/Paddock.App/lang/tr.json`](src/Paddock.App/lang/tr.json). To add a language, put e.g.
+`de.json` in a `lang` folder next to `padx.exe` (or send it as a pull request).
+
 **Everyday comfort** — Ctrl + drag on empty desktop draws a new pad. The × hides a pad
 (bring hidden pads back from the tray or with a hotkey). Rename items inside pads. Open pad
 icons with a single or a double click. Restore everything to the desktop, sorted by type, in

@@ -20,7 +20,7 @@ public partial class ConfigsWindow : Window
     {
         public Visibility StarVisibility => DefaultFor.Count > 0 ? Visibility.Visible : Visibility.Hidden;
 
-        public string StarTip => "default for " + string.Join(", ", DefaultFor.Select(ConfigStore.Display));
+        public string StarTip => Lang.T("default for ") + string.Join(", ", DefaultFor.Select(ConfigStore.Display));
 
         /// <summary>Older configs have no resolution of their own; show the one they are the default of.</summary>
         public string ResolutionText => ConfigStore.Display(Resolution ?? DefaultFor.FirstOrDefault());
@@ -69,8 +69,8 @@ public partial class ConfigsWindow : Window
         EmptyHint.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         ScreenText.Text = ConfigStore.Display(screen);
-        DefaultText.Text = Configs.DefaultFor(screen) is { } current ? $"★ {current}" : "none — pads just move to free space";
-        SaveHint.Text = $"saved for {ConfigStore.Display(screen)} · a name that exists is replaced";
+        DefaultText.Text = Configs.DefaultFor(screen) is { } current ? $"★ {current}" : Lang.T("none — pads just move to free space");
+        SaveHint.Text = Lang.F("saved for {0} · a name that exists is replaced", ConfigStore.Display(screen));
 
         UpdateButtons();
     }
@@ -84,7 +84,7 @@ public partial class ConfigsWindow : Window
             button.Opacity = selected is null ? 0.4 : 1;
         }
 
-        DefaultButton.Content = selected?.DefaultFor.Count > 0 ? "☆ REMOVE DEFAULT" : "★ SET DEFAULT";
+        DefaultButton.Content = Lang.T(selected?.DefaultFor.Count > 0 ? "☆ REMOVE DEFAULT" : "★ SET DEFAULT");
     }
 
     /// <summary>Feedback that fades out after a few seconds — no dialog to dismiss.</summary>
@@ -138,7 +138,7 @@ public partial class ConfigsWindow : Window
         catch (Exception ex)
         {
             Log.Error($"Could not save config '{name}'.", ex);
-            Flash($"✗ could not save: {ex.Message}", problem: true);
+            Flash(Lang.F("✗ could not save: {0}", ex.Message), problem: true);
             return;
         }
         finally
@@ -148,7 +148,7 @@ public partial class ConfigsWindow : Window
 
         Refresh(name);
         NameBox.Text = ConfigStore.DefaultName(DateTime.Now);
-        Flash($"✓ {(replacing ? "replaced" : "saved")} \"{name}\" for {ConfigStore.Display(ScreenHelper.MainResolution())}");
+        Flash(Lang.F(replacing ? "✓ replaced \"{0}\" for {1}" : "✓ saved \"{0}\" for {1}", name, ConfigStore.Display(ScreenHelper.MainResolution())));
     }
 
     // --- Load ---
@@ -167,11 +167,11 @@ public partial class ConfigsWindow : Window
         Refresh(row.Name);
 
         if (missing is null)
-            Flash($"✗ \"{row.Name}\" could not be read", problem: true);
+            Flash(Lang.F("✗ \"{0}\" could not be read", row.Name), problem: true);
         else if (missing > 0)
-            Flash($"✓ loaded \"{row.Name}\" — {missing} item(s) no longer on this PC were skipped");
+            Flash(Lang.F("✓ loaded \"{0}\" — {1} item(s) no longer on this PC were skipped", row.Name, missing));
         else
-            Flash($"✓ loaded \"{row.Name}\"");
+            Flash(Lang.F("✓ loaded \"{0}\"", row.Name));
     }
 
     // --- Defaults ---
@@ -190,7 +190,7 @@ public partial class ConfigsWindow : Window
         {
             Configs.ForgetDefaults(row.Name);
             Refresh(row.Name);
-            Flash($"☆ \"{row.Name}\" is no longer a default");
+            Flash(Lang.F("☆ \"{0}\" is no longer a default", row.Name));
             return;
         }
 
@@ -198,8 +198,8 @@ public partial class ConfigsWindow : Window
         var previous = Configs.DefaultFor(resolution);
         Configs.SetDefault(resolution, row.Name);
         Refresh(row.Name);
-        Flash($"★ \"{row.Name}\" is the default for {ConfigStore.Display(resolution)}"
-              + (previous is not null && previous != row.Name ? $" (was \"{previous}\")" : string.Empty));
+        Flash(Lang.F("★ \"{0}\" is the default for {1}", row.Name, ConfigStore.Display(resolution))
+              + (previous is not null && previous != row.Name ? Lang.F(" (was \"{0}\")", previous) : string.Empty));
     }
 
     // --- Delete ---
@@ -209,13 +209,13 @@ public partial class ConfigsWindow : Window
         if (Selected is not { } row)
             return;
 
-        if (!DigitalDialog.Confirm("Delete config", $"Delete \"{row.Name}\"? This can't be undone.", "DELETE"))
+        if (!DigitalDialog.Confirm("Delete config", Lang.F("Delete \"{0}\"? This can't be undone.", row.Name), "DELETE"))
             return;
 
         Configs.Store.Delete(row.Name);
         Configs.ForgetDefaults(row.Name);
         Refresh();
-        Flash($"✓ deleted \"{row.Name}\"");
+        Flash(Lang.F("✓ deleted \"{0}\"", row.Name));
     }
 
     private void List_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateButtons();

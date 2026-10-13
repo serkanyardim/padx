@@ -116,6 +116,25 @@
                 <TabItem Header="01  GENERAL">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="22,0,22,20">
                         <StackPanel>
+                            <TextBlock Text="// LANGUAGE" Style="{StaticResource D.Section}" />
+
+                            <Border Style="{StaticResource D.Row}">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="AUTO"
+                                                     IsChecked="{Binding Language, Converter={StaticResource Eq}, ConverterParameter=auto}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="ENGLISH"
+                                                     IsChecked="{Binding Language, Converter={StaticResource Eq}, ConverterParameter=en}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="TÜRKÇE"
+                                                     IsChecked="{Binding Language, Converter={StaticResource Eq}, ConverterParameter=tr}" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Language" Style="{StaticResource D.Label}" />
+                                        <TextBlock Text="auto: Türkçe on a Turkish Windows, English otherwise" Style="{StaticResource D.Hint}" TextWrapping="Wrap" MaxWidth="250" HorizontalAlignment="Left" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+
                             <TextBlock Text="// STARTUP" Style="{StaticResource D.Section}" />
 
                             <Border Style="{StaticResource D.Row}">

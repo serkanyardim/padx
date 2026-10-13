@@ -7,6 +7,7 @@ using Paddock.App.Services;
 using Paddock.Core.Models;
 using Paddock.Core.Services;
 using Paddock.Shell;
+using static Paddock.App.Helpers.Lang;
 
 namespace Paddock.App;
 
@@ -92,6 +93,8 @@ public partial class App : Application
         StartupManager = new StartupManager();
 
         ApplyTheme(Settings.Settings.GlobalTheme);
+        Helpers.Lang.Load(Settings.Settings.Language);
+        Helpers.Lang.Install();
 
         // Sync the startup registry entry with the persisted setting
         StartupManager.SetStartupEnabled(Settings.Settings.StartWithWindows);
@@ -291,8 +294,8 @@ public partial class App : Application
     {
         _trayIcon?.ShowBalloonTip(
             7000,
-            "padx is running",
-            "Right-click the tray icon and choose \"New Pad\", then drag an area on the desktop.",
+            T("padx is running"),
+            T("Right-click the tray icon and choose \"New Pad\", then drag an area on the desktop."),
             System.Windows.Forms.ToolTipIcon.Info);
     }
 
@@ -301,7 +304,7 @@ public partial class App : Application
         _trayIcon = new System.Windows.Forms.NotifyIcon
         {
             Visible = true,
-            Text = "padx — desktop, organized",
+            Text = T("padx — desktop, organized"),
             Icon = CreateTrayIcon(),
         };
 
@@ -313,26 +316,26 @@ public partial class App : Application
             Font = new Font("Segoe UI", 9.5f),
             ShowImageMargin = true,
         };
-        menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
-        menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
-        menu.Items.Add("Arrange Pads", Helpers.TrayMenuIcons.ArrangePads(iconSize), (_, _) => AutoOrganizer?.ArrangePads());
+        menu.Items.Add(T("New Pad"), Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
+        menu.Items.Add(T("Auto Organize"), Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
+        menu.Items.Add(T("Arrange Pads"), Helpers.TrayMenuIcons.ArrangePads(iconSize), (_, _) => AutoOrganizer?.ArrangePads());
         menu.Items.Add(BuildConfigMenu(iconSize));
         menu.Items.Add(BuildPadStyleMenu(iconSize));
 
         // Only there when something is hidden, and says how many.
-        var showHidden = new System.Windows.Forms.ToolStripMenuItem("Show Hidden Pads", Helpers.TrayMenuIcons.ShowHidden(iconSize));
+        var showHidden = new System.Windows.Forms.ToolStripMenuItem(T("Show Hidden Pads"), Helpers.TrayMenuIcons.ShowHidden(iconSize));
         showHidden.Click += (_, _) => ShowHiddenPads();
         menu.Items.Add(showHidden);
         menu.Opening += (_, _) =>
         {
             var hidden = Host?.HiddenPadCount ?? 0;
             showHidden.Visible = hidden > 0;
-            showHidden.Text = $"Show Hidden Pads ({hidden})";
+            showHidden.Text = F("Show Hidden Pads ({0})", hidden);
         };
-        menu.Items.Add("Settings", Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
-        menu.Items.Add("About...", Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
+        menu.Items.Add(T("Settings"), Helpers.TrayMenuIcons.Settings(iconSize), (_, _) => OpenSettings());
+        menu.Items.Add(T("About..."), Helpers.TrayMenuIcons.About(iconSize), (_, _) => ShowAbout());
         menu.Items.Add("-");
-        menu.Items.Add("Exit", Helpers.TrayMenuIcons.Exit(iconSize), (_, _) => ExitApplication());
+        menu.Items.Add(T("Exit"), Helpers.TrayMenuIcons.Exit(iconSize), (_, _) => ExitApplication());
 
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => TogglePaddocks();
@@ -341,13 +344,13 @@ public partial class App : Application
     /// <summary>Config ▸ Save, Load (opens the configs window), folder, Reset.</summary>
     private System.Windows.Forms.ToolStripMenuItem BuildConfigMenu(int iconSize)
     {
-        var config = new System.Windows.Forms.ToolStripMenuItem("Config", Helpers.TrayMenuIcons.Config(iconSize));
+        var config = new System.Windows.Forms.ToolStripMenuItem(T("Config"), Helpers.TrayMenuIcons.Config(iconSize));
 
-        config.DropDownItems.Add("Configs... (save, load, defaults)", null, (_, _) => OpenConfigs());
+        config.DropDownItems.Add(T("Configs... (save, load, defaults)"), null, (_, _) => OpenConfigs());
         config.DropDownItems.Add("-");
-        config.DropDownItems.Add("Open Configs Folder", null, (_, _) => OpenFolder(AppPaths.ConfigsFolder));
+        config.DropDownItems.Add(T("Open Configs Folder"), null, (_, _) => OpenFolder(AppPaths.ConfigsFolder));
         config.DropDownItems.Add("-");
-        config.DropDownItems.Add("Reset Config - Delete All Pads", null, (_, _) => RestoreAllIcons());
+        config.DropDownItems.Add(T("Reset Config - Delete All Pads"), null, (_, _) => RestoreAllIcons());
 
         // The submenu gets the same look as the main menu.
         config.DropDown.Renderer = new Helpers.TrayMenuRenderer();
@@ -357,7 +360,7 @@ public partial class App : Application
     /// <summary>Pad Style ▸ Custom / One Color / Glass — ticked to show the current one.</summary>
     private System.Windows.Forms.ToolStripMenuItem BuildPadStyleMenu(int iconSize)
     {
-        var style = new System.Windows.Forms.ToolStripMenuItem("Pad Style", Helpers.TrayMenuIcons.PadStyle(iconSize));
+        var style = new System.Windows.Forms.ToolStripMenuItem(T("Pad Style"), Helpers.TrayMenuIcons.PadStyle(iconSize));
         var options = new (string Text, PadStyleMode Mode)[]
         {
             ("Custom (each pad its own color)", PadStyleMode.Custom),
@@ -367,7 +370,7 @@ public partial class App : Application
 
         foreach (var (text, mode) in options)
         {
-            var item = new System.Windows.Forms.ToolStripMenuItem(text) { Tag = mode };
+            var item = new System.Windows.Forms.ToolStripMenuItem(T(text)) { Tag = mode };
             item.Click += (_, _) => SetPadStyle(mode);
             style.DropDownItems.Add(item);
         }
@@ -410,8 +413,8 @@ public partial class App : Application
             return null;
 
         if (confirm && !Views.DigitalDialog.Confirm("Load config",
-                $"Load \"{name}\"? Your pads and settings are replaced by the saved ones; " +
-                "items are moved back into the pads they were saved in.", "LOAD"))
+                F("Load \"{0}\"? Your pads and settings are replaced by the saved ones; " +
+                "items are moved back into the pads they were saved in.", name), "LOAD"))
         {
             return null;
         }
@@ -435,9 +438,9 @@ public partial class App : Application
         }
 
         if (!quiet && missing is null)
-            Views.DigitalDialog.Inform("Load config", $"\"{name}\" could not be read.");
+            Views.DigitalDialog.Inform("Load config", F("\"{0}\" could not be read.", name));
         else if (!quiet && missing > 0)
-            Views.DigitalDialog.Inform("Load config", $"Loaded. {missing} saved item(s) are no longer on this PC and were skipped.");
+            Views.DigitalDialog.Inform("Load config", F("Loaded. {0} saved item(s) are no longer on this PC and were skipped.", missing));
 
         return missing;
     }
@@ -636,7 +639,7 @@ public partial class App : Application
 
         LoadConfig(name, confirm: false);
         _trayIcon?.ShowBalloonTip(4000, "padx",
-            $"Screen is now {ConfigStore.Display(resolution)} — loaded its default config \"{name}\".",
+            F("Screen is now {0} — loaded its default config \"{1}\".", ConfigStore.Display(resolution), name),
             System.Windows.Forms.ToolTipIcon.Info);
     }
 
@@ -676,7 +679,7 @@ public partial class App : Application
         Views.DigitalDialog.Inform("Restore all icons",
             restored == 0
                 ? "There was nothing to restore."
-                : $"Moved {restored} item(s) back to the desktop.");
+                : F("Moved {0} item(s) back to the desktop.", restored));
     }
 
     /// <summary>Shows the settings window, or brings the open one to the front.</summary>
@@ -727,6 +730,33 @@ public partial class App : Application
         }
 
         _aboutWindow.Activate();
+    }
+
+    /// <summary>
+    /// Starts a fresh padx and quits this one (to switch language). The
+    /// single-instance lock is let go first so the new one can take it.
+    /// </summary>
+    internal void Restart()
+    {
+        PaddockManager.SaveLayout();
+
+        if (_instanceMutex is not null)
+        {
+            _instanceMutex.ReleaseMutex();
+            _instanceMutex.Dispose();
+            _instanceMutex = null;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not restart padx.", ex);
+        }
+
+        Shutdown();
     }
 
     private void ExitApplication()
