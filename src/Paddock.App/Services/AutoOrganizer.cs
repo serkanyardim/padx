@@ -25,7 +25,7 @@ internal sealed class AutoOrganizer
     private static readonly TimeSpan RevealStagger = TimeSpan.FromMilliseconds(70);
 
     /// <summary>Colour per category for <see cref="AutoColorMode.ByCategory"/>: dark, distinct hues.</summary>
-    private static readonly Dictionary<AutoCategory, string> CategoryColors = new()
+    internal static readonly Dictionary<AutoCategory, string> CategoryColors = new()
     {
         [AutoCategory.System] = "#1E2A3A",
         [AutoCategory.Folders] = "#4A3B12",
@@ -625,7 +625,7 @@ internal sealed class AutoOrganizer
     /// padding and 2px margin on each side; the grid sits inside the edge, the
     /// 36px title strip and the scroll viewer's margins (6,36,4,6).
     /// </summary>
-    private static PadMetrics CurrentMetrics(PadAppearance a)
+    internal static PadMetrics CurrentMetrics(PadAppearance a)
     {
         var edge = Math.Max(1, a.BorderThickness);
         var cellWidth = a.IconSize + 32 + 4;

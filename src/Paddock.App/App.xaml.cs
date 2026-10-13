@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Drawing.Drawing2D;
 using System.Windows;
 using Point = System.Windows.Point;
@@ -52,6 +53,14 @@ public partial class App : Application
         }
 
         InstallCrashHandlers();
+
+        // Screenshot mode: a throwaway desktop in %TEMP%, rendered to PNG, then exit.
+        if (e.Args.Length >= 1 && e.Args[0] == "--screenshots")
+        {
+            RunShowcase(e.Args.Length > 1 ? e.Args[1] : "screenshots");
+            return;
+        }
+
         _watchdog = new UiWatchdog(Dispatcher);
         Log.Info($"padx starting (v{typeof(App).Assembly.GetName().Version}).");
 
@@ -112,6 +121,40 @@ public partial class App : Application
 
         if (Host.PaddockCount == 0)
             ShowNoPaddocksHint();
+    }
+
+    /// <summary>
+    /// Points every service at a fresh temp folder (its own desktop, store and
+    /// settings), renders the showcase images, and quits. Nothing real is read
+    /// or written — no tray icon, hotkeys, hooks or pad windows either.
+    /// </summary>
+    private async void RunShowcase(string outputFolder)
+    {
+        var sandbox = Path.Combine(Path.GetTempPath(), $"padx-showcase-{Guid.NewGuid():N}");
+        var desktop = Path.Combine(sandbox, "Desktop");
+        Directory.CreateDirectory(desktop);
+
+        try
+        {
+            Settings = new SettingsService(Path.Combine(sandbox, "settings.json"));
+            IconStore = new IconStore(desktop, Path.Combine(desktop, DesktopIconService.StoreFolderName));
+            PaddockManager = new PaddockManager(Settings, IconStore);
+            IconExtractor = new IconExtractor();
+            StartupManager = new StartupManager();
+            Configs = new ConfigManager(this);
+
+            await ShowcaseRenderer.RenderAsync(this, desktop, Path.GetFullPath(outputFolder));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Rendering the showcase screenshots failed.", ex);
+        }
+        finally
+        {
+            IconExtractor?.Dispose();
+            try { Directory.Delete(sandbox, recursive: true); } catch { }
+            Shutdown();
+        }
     }
 
     /// <summary>

@@ -6,6 +6,8 @@ pads that group your icons, sorted for you, styled the way you like.
 > padx is based on [Paddock](https://github.com/HappyDane/Paddock) by HappyDane (MIT),
 > and has grown well beyond it.
 
+![A desktop after Auto Organize](docs/screenshots/desktop.png)
+
 ---
 
 ## Features
@@ -37,6 +39,26 @@ load it back any time, or have one load at every startup.
 **Everyday comfort** — Ctrl + drag on empty desktop draws a new pad. The × hides a pad
 (bring hidden pads back from the tray or with a hotkey). Rename items inside pads. Restore
 everything to the desktop, sorted by type, in one step. Configurable global hotkeys.
+
+## Screenshots
+
+| Glass pads | Settings — Appearance |
+|---|---|
+| ![Glass pads](docs/screenshots/desktop-glass.png) | ![Appearance settings](docs/screenshots/settings-appearance.png) |
+
+| Settings — Auto Mode | About |
+|---|---|
+| ![Auto Mode settings](docs/screenshots/settings-automode.png) | ![About](docs/screenshots/about.png) |
+
+All screenshots are generated from a throwaway demo desktop, so they never show anyone's
+real files — regenerate them with:
+
+```bash
+padx.exe --screenshots docs/screenshots
+```
+
+(In the real app, glass pads also blur the wallpaper behind them; a rendered image can't
+capture that live Windows effect.)
 
 ## How icons work
 
