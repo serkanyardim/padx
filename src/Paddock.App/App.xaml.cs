@@ -96,8 +96,10 @@ public partial class App : Application
         Helpers.Lang.Load(Settings.Settings.Language);
         Helpers.Lang.Install();
 
-        // Sync the startup registry entry with the persisted setting
-        StartupManager.SetStartupEnabled(Settings.Settings.StartWithWindows);
+        // Sync "start with Windows" with the persisted setting.
+        // Off the UI thread: it talks to Task Scheduler, and the pads should not wait for that.
+        var startWithWindows = Settings.Settings.StartWithWindows;
+        _ = Task.Run(() => StartupManager.SetStartupEnabled(startWithWindows));
 
         // Save layout when Windows is shutting down or the user logs off
         SessionEnding += (_, _) => PaddockManager.SaveLayout();

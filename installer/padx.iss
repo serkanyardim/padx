@@ -79,6 +79,8 @@ begin
      (SuppressibleMsgBox(CustomMessage('RestoreIcons'), mbConfirmation, MB_YESNO, IDYES) = IDYES) then
     Exec(ExpandConstant('{app}\{#AppExe}'), '--restore-all', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-  // The app writes its own "start with Windows" entry; remove it with the app.
+  // The app sets up its own "start with Windows" (a logon task, or a Run
+  // value where tasks are not allowed); remove both with the app.
   RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'padx');
+  Exec(ExpandConstant('{sys}\schtasks.exe'), '/Delete /TN "padx - ' + GetUserNameString + '" /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
