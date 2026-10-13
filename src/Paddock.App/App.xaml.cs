@@ -54,6 +54,13 @@ public partial class App : Application
 
         InstallCrashHandlers();
 
+        // Run by the uninstaller: every icon back on the desktop, no pads, then exit.
+        if (e.Args.Length >= 1 && e.Args[0] == "--restore-all")
+        {
+            RestoreAllAndExit();
+            return;
+        }
+
         // Screenshot mode: a throwaway desktop in %TEMP%, rendered to PNG, then exit.
         if (e.Args.Length >= 1 && e.Args[0] == "--screenshots")
         {
@@ -121,6 +128,41 @@ public partial class App : Application
 
         if (Host.PaddockCount == 0)
             ShowNoPaddocksHint();
+    }
+
+    /// <summary>
+    /// Headless cleanup for the uninstaller. Runs only when padx itself is not
+    /// running (the installer closes it first), so the two never fight over
+    /// the files.
+    /// </summary>
+    private void RestoreAllAndExit()
+    {
+        try
+        {
+            if (!ClaimSingleInstance())
+            {
+                Log.Warn("--restore-all skipped: padx is still running.");
+                return;
+            }
+
+            Settings = new SettingsService();
+            DesktopIconService = new DesktopIconService();
+            IconStore = DesktopIconService.CreateIconStore();
+            PaddockManager = new PaddockManager(Settings, IconStore);
+            Configs = new ConfigManager(this);
+
+            Configs.RestoreEverything();
+            new StartupManager().SetStartupEnabled(false);
+            Log.Info("--restore-all: every icon is back on the desktop.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error("--restore-all failed.", ex);
+        }
+        finally
+        {
+            Shutdown();
+        }
     }
 
     /// <summary>

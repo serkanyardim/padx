@@ -136,6 +136,20 @@ internal sealed class ConfigManager
     }
 
     /// <summary>
+    /// Used when padx is uninstalled: everything back on the desktop, no pads
+    /// left, built-in icons visible again — nothing stranded in the hidden
+    /// pad folders once the app is gone.
+    /// </summary>
+    public void RestoreEverything()
+    {
+        using (Manager.DeferSave())
+            EmptyAllPads();
+
+        SystemDesktopIcons.RefreshDesktop();
+        _app.DesktopIconService.NotifyShellOfDesktopChange();
+    }
+
+    /// <summary>
     /// Every item back on the desktop and every pad gone; built-in icons
     /// (This PC…) come back as themselves.
     /// </summary>

@@ -70,7 +70,22 @@ an icon off the desktop is to move the file. padx does exactly that, and keeps i
   it **straight back** to the desktop. Nothing is ever deleted, no name is ever overwritten.
 - Items from elsewhere (a folder in Explorer) are only referenced, never moved.
 
-## Getting started
+## Download
+
+Get the latest version from **[Releases](https://github.com/serkanyardim/padx/releases)**:
+
+- **`padx-setup-v<version>.exe`** — installer. Installs for your user only (no administrator
+  rights), adds a Start menu entry, and on uninstall offers to move every icon back to the desktop.
+- **`padx-v<version>-portable.exe`** — the app itself, nothing to install.
+
+Requires Windows 10 (1903+) or Windows 11, 64-bit. Nothing else — .NET is built in.
+
+> **"Windows protected your PC"?** padx is not code-signed yet (signing certificates are
+> costly for a free project), so Microsoft SmartScreen warns about any new, unsigned app.
+> Click **More info → Run anyway**. The code is all here to read, and each release lists
+> the SHA-256 hash of its files so you can check your download.
+
+## Building from source
 
 **Requirements:** Windows 10 (1903+) or Windows 11, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
@@ -81,10 +96,11 @@ dotnet build
 dotnet run --project src/Paddock.App
 ```
 
-Single self-contained exe:
+Release build — installer and portable exe, named with the version, in `artifacts\`
+(needs [Inno Setup 6](https://jrsoftware.org/isinfo.php): `winget install JRSoftware.InnoSetup`):
 
-```bash
-dotnet publish src/Paddock.App -c Release -p:PublishProfile=win-x64
+```powershell
+.\build-release.ps1
 ```
 
 padx lives in the system tray: right-click it for **New Pad**, **Auto Organize**, **Config**,

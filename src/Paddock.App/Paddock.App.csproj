@@ -5,8 +5,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>Paddock.App</RootNamespace>
     <AssemblyName>padx</AssemblyName>
-    <!-- Uncomment when assets/tray-icon.ico is added -->
-    <!-- <ApplicationIcon>..\..\assets\tray-icon.ico</ApplicationIcon> -->
+    <ApplicationIcon>..\..\assets\padx.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- Single-file publish settings (activated via publish profile or CLI) -->
