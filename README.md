@@ -85,6 +85,34 @@ Requires Windows 10 (1903+) or Windows 11, 64-bit. Nothing else — .NET is buil
 > Click **More info → Run anyway**. The code is all here to read, and each release lists
 > the SHA-256 hash of its files so you can check your download.
 
+## Installation
+
+1. Open the latest **[Release](https://github.com/serkanyardim/padx/releases/latest)** and, under
+   **Assets**, download **`padx-setup-v<version>.exe`**.
+2. Run it. If Windows shows **"Windows protected your PC"**, click **More info**, then
+   **Run anyway** (see the note above).
+3. Pick a language (English or Türkçe), accept the MIT license, and click **Install**.
+   No administrator rights are needed: padx installs to `%LocalAppData%\Programs\padx`.
+4. Leave **Launch padx** ticked and click **Finish**.
+
+padx now runs in the **system tray** (next to the clock — click **^** if you don't see its
+blue icon). Right-click the icon to get started:
+
+- **Auto Organize** — sorts your whole desktop into pads in one go (you can Accept or Revert).
+- **New Pad** — draw a pad yourself; or hold **Ctrl** and drag on empty desktop.
+- **Settings** — colours, glass, shortcuts, startup and more.
+
+padx starts with Windows by default; turn that off in **Settings → General**.
+
+**Portable instead?** Download **`padx-v<version>-portable.exe`**, put it anywhere, and run it.
+Nothing is installed.
+
+**Updating:** run the newer setup file; it replaces the old version and keeps your pads and settings.
+
+**Uninstalling:** **Settings → Apps → Installed apps → padx → Uninstall**. When asked
+*"Move every icon from your padx pads back to the desktop?"*, choose **Yes** so every file
+comes back onto your desktop.
+
 ## Building from source
 
 **Requirements:** Windows 10 (1903+) or Windows 11, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -96,8 +124,9 @@ dotnet build
 dotnet run --project src/Paddock.App
 ```
 
-Release build — installer and portable exe, named with the version, in `artifacts\`
-(needs [Inno Setup 6](https://jrsoftware.org/isinfo.php): `winget install JRSoftware.InnoSetup`):
+Release build — installer and portable exe, named with the version, in `artifacts\`.
+Only for building the installer yourself: it needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+(`winget install JRSoftware.InnoSetup`). People who install padx don't need it.
 
 ```powershell
 .\build-release.ps1
