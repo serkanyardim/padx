@@ -96,6 +96,70 @@ public static class AutoLayoutPlanner
         return null;
     }
 
+    /// <summary>
+    /// The same table as <see cref="PlanGrid"/> for pads that keep their own
+    /// size: tops aligned per row, left edges per column, even gaps, short pads
+    /// stacked into the room under them — but nothing is resized, so each pad
+    /// keeps its rows and columns of icons. A column is as wide as its widest pad.
+    /// </summary>
+    /// <returns>One rectangle per size, in input order, or null if no table fits.</returns>
+    public static List<PlacedRect>? PlanGridFixedSizes(
+        IReadOnlyList<(double Width, double Height)> sizes,
+        LayoutBounds area,
+        double gap,
+        AutoStartCorner corner,
+        bool keepFirst)
+    {
+        var n = sizes.Count;
+        if (n == 0)
+            return [];
+
+        var order = Enumerable.Range(0, n).ToList();
+        var rest = order.Skip(keepFirst ? 1 : 0).OrderByDescending(i => sizes[i].Height).ThenBy(i => i);
+        order = (keepFirst ? [0] : new List<int>()).Concat(rest).ToList();
+
+        var usableWidth = area.Width - 2 * gap;
+        var usableHeight = area.Height - 2 * gap;
+
+        for (var columns = 1; columns <= n; columns++)
+        {
+            var grid = Arrange(order, columns, i => sizes[i].Height, gap);
+
+            var widths = new double[columns];
+            var rowHeights = new double[grid.Count];
+            var heights = new Dictionary<int, double>();
+
+            for (var r = 0; r < grid.Count; r++)
+            {
+                for (var c = 0; c < grid[r].Count; c++)
+                {
+                    var stack = 0.0;
+                    foreach (var pad in grid[r][c])
+                    {
+                        widths[c] = Math.Max(widths[c], sizes[pad].Width);
+                        heights[pad] = sizes[pad].Height;
+                        stack += sizes[pad].Height + (stack > 0 ? gap : 0);
+                    }
+
+                    rowHeights[r] = Math.Max(rowHeights[r], stack);
+                }
+            }
+
+            var table = new Table(grid, widths, rowHeights, heights,
+                widths.Sum() + (columns - 1) * gap, rowHeights.Sum() + (grid.Count - 1) * gap);
+
+            if (table.TotalWidth > usableWidth || table.TotalHeight > usableHeight)
+                continue;
+
+            // Position as usual, then give every pad back its own width.
+            return Position(table, area, gap, corner, n)
+                .Select((r, i) => r with { Width = sizes[i].Width })
+                .ToList();
+        }
+
+        return null;
+    }
+
     /// <summary>Rows → cells (one per column) → the pads stacked in that cell, top to bottom.</summary>
     private sealed record Table(
         List<List<List<int>>> Grid, double[] ColumnWidths, double[] RowHeights,

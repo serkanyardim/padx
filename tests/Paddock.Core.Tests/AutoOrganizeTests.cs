@@ -246,6 +246,31 @@ public class AutoLayoutPlannerTests
         => Assert.Null(AutoLayoutPlanner.PlanGrid(MixedCounts, 6, Metrics, LayoutBounds.FromSize(800, 600), 12, AutoStartCorner.TopLeft, keepFirst: true));
 
     [Fact]
+    public void PlanGridFixedSizes_NeverResizesAPad()
+    {
+        (double, double)[] sizes = [(320, 130), (622, 298), (470, 214), (166, 130), (622, 382), (320, 130)];
+
+        var rects = AutoLayoutPlanner.PlanGridFixedSizes(sizes, WideScreen, 12, AutoStartCorner.TopLeft, keepFirst: true)!;
+
+        for (var i = 0; i < sizes.Length; i++)
+            Assert.Equal(sizes[i], (rects[i].Width, rects[i].Height));
+    }
+
+    [Fact]
+    public void PlanGridFixedSizes_AlignsLeftEdgesAndNeverOverlaps()
+    {
+        (double, double)[] sizes = [(320, 130), (622, 298), (470, 214), (166, 130), (622, 382), (320, 130), (470, 130)];
+
+        var rects = AutoLayoutPlanner.PlanGridFixedSizes(sizes, LayoutBounds.FromSize(1920, 1040), 12, AutoStartCorner.TopLeft, keepFirst: true)!;
+
+        Assert.Equal((12.0, 12.0), (rects[0].X, rects[0].Y));
+        Assert.True(rects.Select(r => r.X).Distinct().Count() < rects.Count);
+        for (var i = 0; i < rects.Count; i++)
+            for (var j = i + 1; j < rects.Count; j++)
+                Assert.False(rects[i].Intersects(rects[j], 11.9));
+    }
+
+    [Fact]
     public void NearestFreeSpot_MovesAPadThatFellOffAShrunkScreen_ToTheClosestGap()
     {
         // 2560x1440 → 1920x1080: a pad that sat at y=1200 must come up, but not onto its neighbour.

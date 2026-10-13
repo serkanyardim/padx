@@ -547,11 +547,10 @@ internal sealed class AutoOrganizer
             movable.Insert(0, system);
         }
 
-        var metrics = CurrentMetrics(settings.Appearance);
-        var counts = movable.Select(p => Math.Max(1, p.Icons.Count)).ToList();
-        var sizes = counts
-            .Select(c => AutoLayoutPlanner.Measure(c, auto.MaxIconsPerRow, metrics))
-            .Select(m => (m.Width, m.Height))
+        // Every pad keeps the size it has now — its own rows and columns of
+        // icons — and only moves (a rolled-up pad counts as its title strip).
+        var sizes = movable
+            .Select(p => (p.Width, p.IsRolledUp ? ViewModels.PaddockViewModel.TitleBarHeight : p.Height))
             .ToList();
 
         var obstacles = visible.Where(p => p.Locked)
@@ -562,7 +561,7 @@ internal sealed class AutoOrganizer
         var bounds = new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height);
         var gap = Math.Max(8, settings.IntelligentSpacing);
 
-        var rects = PlanTable(counts, sizes, metrics, bounds, gap, system is not null, auto);
+        var rects = AutoLayoutPlanner.PlanGridFixedSizes(sizes, bounds, gap, auto.StartCorner, keepFirst: system is not null);
         if (rects is null || rects.Any(r => obstacles.Any(o => r.Intersects(o, gap / 2))))
             rects = PlanFreeform(sizes, bounds, obstacles, gap, system is not null, auto.StartCorner);
 
@@ -570,17 +569,12 @@ internal sealed class AutoOrganizer
         {
             for (var i = 0; i < movable.Count; i++)
             {
-                var (pad, rect) = (movable[i], rects[i]);
-                pad.X = rect.X;
-                pad.Y = rect.Y;
-                pad.Width = rect.Width;
-                pad.Height = rect.Height;
+                movable[i].X = rects[i].X;
+                movable[i].Y = rects[i].Y;
                 Manager.SaveLayout();
-                Host.FindWindow(pad.Id)?.ApplyModelBounds();
+                Host.FindWindow(movable[i].Id)?.ApplyModelBounds();
             }
         }
-
-        Host.ApplyAppearance();
         Log.Info($"Arrange pads: {movable.Count} pad(s) arranged, {obstacles.Count} locked pad(s) left in place.");
     }
 
