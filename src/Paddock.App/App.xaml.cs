@@ -104,20 +104,25 @@ public partial class App : Application
         // If a previous run died mid Auto Organize, the desktop icons could still be hidden.
         ShellHookService.SetDesktopIconsVisible(true);
 
-        // A fixed startup config replaces the last session's layout before any pad is drawn.
+        // The main screen's ★ default config, if it has one, replaces the last
+        // session's layout before any pad is drawn.
         Configs = new ConfigManager(this);
-        if (Settings.Settings.StartupConfig is { } startup)
+        Configs.MigrateStartupConfig();
+
+        _mainResolution = Helpers.ScreenHelper.MainResolution();
+        if (Configs.DefaultFor(_mainResolution) is { } startup)
         {
-            if (Configs.Store.Exists(startup))
-            {
-                Configs.Apply(startup);
-                ApplyLoadedSettings();
-            }
-            else
-            {
-                Log.Warn($"Startup config '{startup}' no longer exists; keeping the last session.");
-            }
+            Log.Info($"Main screen {_mainResolution}: loading its default config '{startup}'.");
+            Configs.Apply(startup);
+            ApplyLoadedSettings();
         }
+
+        // …and again whenever the main screen changes resolution (a laptop
+        // undocked, a monitor swapped). Display events come in bursts, so wait
+        // for them to settle.
+        _resolutionCheck = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _resolutionCheck.Tick += (_, _) => { _resolutionCheck.Stop(); OnMainScreenMaybeChanged(); };
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         Host = new PaddockHost(this);
         Host.Start();
@@ -334,8 +339,7 @@ public partial class App : Application
     {
         var config = new System.Windows.Forms.ToolStripMenuItem("Config", Helpers.TrayMenuIcons.Config(iconSize));
 
-        config.DropDownItems.Add("Save Config...", null, (_, _) => SaveConfig());
-        config.DropDownItems.Add("Load Config...", null, (_, _) => OpenConfigs());
+        config.DropDownItems.Add("Configs... (save, load, defaults)", null, (_, _) => OpenConfigs());
         config.DropDownItems.Add("-");
         config.DropDownItems.Add("Open Configs Folder", null, (_, _) => OpenFolder(AppPaths.ConfigsFolder));
         config.DropDownItems.Add("-");
@@ -376,21 +380,14 @@ public partial class App : Application
 
     private Views.ConfigsWindow? _configsWindow;
 
-    /// <summary>
-    /// Shows the configs window, or brings the open one to the front. From
-    /// "Save Config" it opens ready to type a name (or pick one to overwrite).
-    /// </summary>
-    internal void OpenConfigs(bool saving = false)
+    /// <summary>Shows the config manager, or brings the open one to the front.</summary>
+    internal void OpenConfigs()
     {
         if (_configsWindow is null)
         {
-            _configsWindow = new Views.ConfigsWindow(saving);
+            _configsWindow = new Views.ConfigsWindow();
             _configsWindow.Closed += (_, _) => _configsWindow = null;
             _configsWindow.Show();
-        }
-        else
-        {
-            _configsWindow.SwitchTo(saving);
         }
 
         _configsWindow.Activate();
@@ -398,18 +395,21 @@ public partial class App : Application
 
     internal ConfigManager Configs { get; private set; } = null!;
 
-    internal void SaveConfig() => OpenConfigs(saving: true);
-
-    internal void LoadConfig(string name, bool confirm = true)
+    /// <summary>
+    /// Loads a config. Returns how many saved items were missing, or null if it
+    /// could not be read (or was cancelled). <paramref name="quiet"/> leaves the
+    /// reporting to the caller (the config manager shows it in its status line).
+    /// </summary>
+    internal int? LoadConfig(string name, bool confirm = true, bool quiet = false)
     {
         if (Host is null)
-            return;
+            return null;
 
         if (confirm && !Views.DigitalDialog.Confirm("Load config",
                 $"Load \"{name}\"? Your pads and settings are replaced by the saved ones; " +
                 "items are moved back into the pads they were saved in.", "LOAD"))
         {
-            return;
+            return null;
         }
 
         AutoOrganizer?.Accept();
@@ -430,10 +430,12 @@ public partial class App : Application
             ShellHookService.SetDesktopIconsVisible(true);
         }
 
-        if (missing is null)
+        if (!quiet && missing is null)
             Views.DigitalDialog.Inform("Load config", $"\"{name}\" could not be read.");
-        else if (missing > 0)
+        else if (!quiet && missing > 0)
             Views.DigitalDialog.Inform("Load config", $"Loaded. {missing} saved item(s) are no longer on this PC and were skipped.");
+
+        return missing;
     }
 
     /// <summary>Re-applies everything that reads settings once (hotkeys, Ctrl+drag, startup entry).</summary>
@@ -552,6 +554,35 @@ public partial class App : Application
     }
 
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
+
+    private string _mainResolution = string.Empty;
+    private System.Windows.Threading.DispatcherTimer? _resolutionCheck;
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+        => Dispatcher.InvokeAsync(() => { _resolutionCheck?.Stop(); _resolutionCheck?.Start(); });
+
+    /// <summary>
+    /// The main screen now has a different resolution: load the ★ default made
+    /// for it. Without one, nothing is loaded — the pads that no longer fit
+    /// have already been moved to free space by the host.
+    /// </summary>
+    private void OnMainScreenMaybeChanged()
+    {
+        var resolution = Helpers.ScreenHelper.MainResolution();
+        if (resolution == _mainResolution)
+            return;
+
+        Log.Info($"Main screen changed: {_mainResolution} → {resolution}.");
+        _mainResolution = resolution;
+
+        if (Configs.DefaultFor(resolution) is not { } name)
+            return;
+
+        LoadConfig(name, confirm: false);
+        _trayIcon?.ShowBalloonTip(4000, "padx",
+            $"Screen is now {ConfigStore.Display(resolution)} — loaded its default config \"{name}\".",
+            System.Windows.Forms.ToolTipIcon.Info);
+    }
 
     /// <summary>Switches every pad between their own colours, one colour, or glass.</summary>
     internal void SetPadStyle(PadStyleMode mode)

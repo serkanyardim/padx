@@ -10,11 +10,18 @@ namespace Paddock.Core.Services;
 /// <param name="SystemClsid">For a built-in desktop icon (This PC…), its shell id; the shortcut is recreated.</param>
 public sealed record ConfigIcon(string FileName, bool Managed, string Path, string? SystemClsid = null);
 
+/// <summary>A saved config as listed: name, when, and the main screen resolution it was made for.</summary>
+public sealed record ConfigInfo(string Name, DateTime SavedAt, string? Resolution);
+
 /// <summary>A named snapshot of everything: settings, appearance, pads and what is in them.</summary>
 public sealed class SavedConfig
 {
     public string Name { get; set; } = string.Empty;
     public DateTime SavedAt { get; set; }
+
+    /// <summary>Main screen resolution when it was saved, e.g. "2560x1440". Null for older configs.</summary>
+    public string? Resolution { get; set; }
+
     public AppSettings Settings { get; set; } = new();
 
     /// <summary>Pad id → its icons, in order.</summary>
@@ -48,17 +55,37 @@ public class ConfigStore
 
     public bool Exists(string name) => File.Exists(PathOf(name));
 
-    /// <summary>Saved configs, newest first.</summary>
-    public IReadOnlyList<(string Name, DateTime SavedAt)> List()
+    /// <summary>Saved configs, newest first, with the resolution each was saved at.</summary>
+    public IReadOnlyList<ConfigInfo> List()
     {
         if (!Directory.Exists(Folder))
             return [];
 
         return Directory.EnumerateFiles(Folder, "*.json")
-            .Select(f => (Name: System.IO.Path.GetFileNameWithoutExtension(f), SavedAt: File.GetLastWriteTime(f)))
+            .Select(f => new ConfigInfo(System.IO.Path.GetFileNameWithoutExtension(f), File.GetLastWriteTime(f), ReadResolution(f)))
             .OrderByDescending(c => c.SavedAt)
             .ToList();
     }
+
+    /// <summary>Reads just the resolution field, without loading the whole config.</summary>
+    private static string? ReadResolution(string file)
+    {
+        try
+        {
+            using var stream = File.OpenRead(file);
+            using var doc = JsonDocument.Parse(stream);
+            return doc.RootElement.TryGetProperty("resolution", out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Pretty form of a resolution key: "2560x1440" → "2560×1440".</summary>
+    public static string Display(string? resolution) => resolution?.Replace('x', '×') ?? "—";
 
     public void Save(SavedConfig config)
     {

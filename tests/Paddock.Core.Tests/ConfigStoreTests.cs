@@ -71,6 +71,36 @@ public class ConfigStoreTests : IDisposable
     }
 
     [Fact]
+    public void List_ShowsTheResolutionEachConfigWasSavedAt()
+    {
+        var store = new ConfigStore(_folder);
+        store.Save(new SavedConfig { Name = "office", Resolution = "2560x1440" });
+        store.Save(new SavedConfig { Name = "old" });
+
+        var list = store.List().ToDictionary(c => c.Name, c => c.Resolution);
+
+        Assert.Equal("2560x1440", list["office"]);
+        Assert.Null(list["old"]);
+        Assert.Equal("2560×1440", ConfigStore.Display("2560x1440"));
+        Assert.Equal("—", ConfigStore.Display(null));
+    }
+
+    [Fact]
+    public void ResolutionDefaults_SurviveASettingsRoundTrip()
+    {
+        var path = Path.Combine(_folder, "settings.json");
+        var settings = new SettingsService(path);
+        settings.Settings.ResolutionDefaults["2560x1440"] = "office";
+        settings.Settings.ResolutionDefaults["1920x1080"] = "laptop";
+        settings.Save();
+
+        var reloaded = new SettingsService(path).Settings.ResolutionDefaults;
+
+        Assert.Equal("office", reloaded["2560X1440"]);
+        Assert.Equal("laptop", reloaded["1920x1080"]);
+    }
+
+    [Fact]
     public void List_IsNewestFirst()
     {
         var store = new ConfigStore(_folder);

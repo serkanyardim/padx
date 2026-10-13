@@ -57,6 +57,16 @@ internal static class ScreenHelper
         }
     }
 
+    /// <summary>
+    /// The main screen's resolution in real pixels, as a config key: "2560x1440".
+    /// With several monitors it is the one Windows calls "main display".
+    /// </summary>
+    internal static string MainResolution()
+    {
+        var bounds = Screen.PrimaryScreen?.Bounds ?? System.Drawing.Rectangle.Empty;
+        return $"{bounds.Width}x{bounds.Height}";
+    }
+
     /// <summary>Current mouse position in DIPs, valid across all monitors.</summary>
     internal static Point GetCursorPosition()
     {

@@ -55,7 +55,14 @@ internal sealed class ConfigManager
                     SystemDesktopIcons.FromTarget(ShortcutReader.Describe(i.DesktopPath).Target)?.Clsid))
                 .ToList()));
 
-        var config = new SavedConfig { Name = name.Trim(), SavedAt = DateTime.Now, Settings = settings, Icons = icons };
+        var config = new SavedConfig
+        {
+            Name = name.Trim(),
+            SavedAt = DateTime.Now,
+            Resolution = Helpers.ScreenHelper.MainResolution(),
+            Settings = settings,
+            Icons = icons,
+        };
         await Task.Run(() => Store.Save(config));
 
         Log.Info($"Config '{name}' saved: {icons.Count} pad(s), {icons.Values.Sum(l => l.Count)} item(s).");
@@ -82,6 +89,7 @@ internal sealed class ConfigManager
             var current = _app.Settings.Settings;
             config.Settings.StartupConfig = current.StartupConfig;
             config.Settings.StartWithWindows = current.StartWithWindows;
+            config.Settings.ResolutionDefaults = current.ResolutionDefaults;
 
             var corral = config.Settings.Corrals.TryGetValue(config.Settings.ActiveCorral, out var c) ? c : new CorralModel();
             var savedPads = corral.Paddocks.ToList();
@@ -133,6 +141,54 @@ internal sealed class ConfigManager
             return false;
 
         return Manager.AddIconToPaddock(padId, path) is not null;
+    }
+
+    // --- Defaults per main-screen resolution ---
+
+    /// <summary>The config marked ★ for this resolution, if it still exists.</summary>
+    public string? DefaultFor(string resolution)
+        => _app.Settings.Settings.ResolutionDefaults.TryGetValue(resolution, out var name) && Store.Exists(name) ? name : null;
+
+    /// <summary>Makes a config the ★ default of a resolution (replacing any previous one).</summary>
+    public void SetDefault(string resolution, string name)
+    {
+        _app.Settings.Settings.ResolutionDefaults[resolution] = name;
+        _app.Settings.Save();
+    }
+
+    public void RemoveDefault(string resolution)
+    {
+        _app.Settings.Settings.ResolutionDefaults.Remove(resolution);
+        _app.Settings.Save();
+    }
+
+    /// <summary>Drops every ★ that points at a config (when it is deleted).</summary>
+    public void ForgetDefaults(string name)
+    {
+        var defaults = _app.Settings.Settings.ResolutionDefaults;
+        foreach (var key in defaults.Where(d => string.Equals(d.Value, name, StringComparison.OrdinalIgnoreCase)).Select(d => d.Key).ToList())
+            defaults.Remove(key);
+
+        _app.Settings.Save();
+    }
+
+    /// <summary>
+    /// The old single "startup config" becomes the default of the resolution
+    /// in use now, so nobody loses their setting.
+    /// </summary>
+    public void MigrateStartupConfig()
+    {
+        var settings = _app.Settings.Settings;
+        if (settings.StartupConfig is not { } old)
+            return;
+
+        var resolution = Helpers.ScreenHelper.MainResolution();
+        if (!settings.ResolutionDefaults.ContainsKey(resolution) && Store.Exists(old))
+            settings.ResolutionDefaults[resolution] = old;
+
+        settings.StartupConfig = null;
+        _app.Settings.Save();
+        Log.Info($"Startup config '{old}' is now the default for {resolution}.");
     }
 
     /// <summary>

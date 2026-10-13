@@ -62,16 +62,14 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    public const string LastSession = "Last session";
-
-    /// <summary>What Paddock starts with: the last session, or a saved config's name.</summary>
-    public string StartupLayout
+    /// <summary>The main screen now and its ★ default config, e.g. "2560×1440 · ★ office".</summary>
+    public string ScreenDefault
     {
-        get => S.StartupConfig ?? LastSession;
-        set
+        get
         {
-            S.StartupConfig = value == LastSession ? null : value;
-            Changed();
+            var screen = Helpers.ScreenHelper.MainResolution();
+            var name = CurrentApp.Configs.DefaultFor(screen);
+            return $"{ConfigStore.Display(screen)} · {(name is null ? "last session" : "★ " + name)}";
         }
     }
 

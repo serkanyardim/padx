@@ -74,6 +74,10 @@ public class SettingsService
                 loaded.Appearance.Normalize();
                 loaded.AutoMode ??= new AutoModeSettings();
                 loaded.AutoMode.Normalize();
+
+                // The deserializer builds a plain dictionary; resolution keys are matched case-insensitively.
+                loaded.ResolutionDefaults = new Dictionary<string, string>(
+                    loaded.ResolutionDefaults ?? new(), StringComparer.OrdinalIgnoreCase);
                 return loaded;
             }
 

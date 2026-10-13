@@ -6,10 +6,16 @@ public class AppSettings
     public bool StartWithWindows { get; set; } = true;
 
     /// <summary>
-    /// Saved config to load every time Paddock starts, or null to carry on
-    /// with the last session's layout.
+    /// Old single startup config; replaced by <see cref="ResolutionDefaults"/>
+    /// and migrated into it on first start.
     /// </summary>
     public string? StartupConfig { get; set; }
+
+    /// <summary>
+    /// Main screen resolution ("2560x1440") → the config to load for it, at
+    /// startup and whenever the main screen changes to that resolution.
+    /// </summary>
+    public Dictionary<string, string> ResolutionDefaults { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public string GlobalTheme { get; set; } = "dark";
     public bool QuickHideEnabled { get; set; } = true;
     public string QuickHideHotkey { get; set; } = "Ctrl+F12";
