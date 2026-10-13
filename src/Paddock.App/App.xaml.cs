@@ -124,7 +124,11 @@ public partial class App : Application
         _resolutionCheck.Tick += (_, _) => { _resolutionCheck.Stop(); OnMainScreenMaybeChanged(); };
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
+        // Before the pads are placed: an always-visible search box keeps its strip free.
+        ApplySearchBox(fitPads: false);
+
         Host = new PaddockHost(this);
+        Host.Pinned += () => _search?.PinToDesktop();
         Host.Start();
         AutoOrganizer = new AutoOrganizer(this);
         AutoOrganizer.RecoverStagedItems();
@@ -443,7 +447,57 @@ public partial class App : Application
     {
         RegisterHotkeys();
         UpdateDesktopDrawing();
+        ApplySearchBox(fitPads: true);
         StartupManager.SetStartupEnabled(Settings.Settings.StartWithWindows);
+    }
+
+    private Views.SearchWindow? _search;
+    private string? _searchShape;
+
+    /// <summary>
+    /// Sets the desktop search up as the settings say: an always-visible box at
+    /// the top or bottom of the main screen (its strip kept free of pads), or
+    /// a popup made when the shortcut is first pressed.
+    /// </summary>
+    internal void ApplySearchBox(bool fitPads)
+    {
+        var settings = Settings.Settings;
+        string? dock = !settings.SearchBoxAlwaysVisible ? null
+            : string.Equals(settings.SearchBoxPosition, "bottom", StringComparison.OrdinalIgnoreCase) ? "bottom" : "top";
+
+        Helpers.ScreenHelper.ReserveMainScreenStrip(
+            dock == "top" ? Views.SearchWindow.StripHeight : 0,
+            dock == "bottom" ? Views.SearchWindow.StripHeight : 0);
+
+        // Where it lives and glass-or-colour need a new window; the colour does not.
+        var glass = string.Equals(settings.SearchBoxStyle, "glass", StringComparison.OrdinalIgnoreCase);
+        var shape = $"{dock}|{glass}";
+
+        if (shape != _searchShape)
+        {
+            _search?.Close();
+            _search = null;
+            _searchShape = shape;
+
+            if (dock is not null)
+            {
+                _search = new Views.SearchWindow(dock, glass);
+                _search.ShowDocked();
+            }
+        }
+
+        _search?.ApplyLook();
+
+        if (fitPads)
+            Host?.FitPadsToScreens();
+    }
+
+    /// <summary>The search shortcut: opens the popup, or brings the docked box forward.</summary>
+    private void OpenSearch()
+    {
+        _search ??= new Views.SearchWindow(dockedAt: null,
+            glass: string.Equals(Settings.Settings.SearchBoxStyle, "glass", StringComparison.OrdinalIgnoreCase));
+        _search.Summon();
     }
 
     private void InitializeHotkeys()
@@ -464,6 +518,7 @@ public partial class App : Application
             return failed;
 
         _hotkeys.UnregisterAll();
+        _search?.RefreshHint();
 
         var settings = Settings.Settings;
         var bindings = new List<(string Hotkey, Action Action)>
@@ -472,6 +527,7 @@ public partial class App : Application
             (settings.RollUpAllHotkey, () => Host?.ToggleRollUpAll()),
             (settings.ShowHiddenHotkey, ShowHiddenPads),
             (settings.SettingsHotkey, OpenSettings),
+            (settings.SearchHotkey, OpenSearch),
         };
 
         if (settings.QuickHideEnabled)
@@ -730,6 +786,7 @@ public partial class App : Application
         PaddockManager?.SaveLayout();
 
         _hotkeys?.Dispose();
+        _search?.Close();
         _desktopDrag?.Dispose();
         _watchdog?.Dispose();
         Host?.Dispose();

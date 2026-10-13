@@ -119,7 +119,7 @@
                           HorizontalScrollBarVisibility="Disabled"
                           Background="Transparent"
                           Visibility="{Binding ContentVisibility}">
-                <ItemsControl ItemsSource="{Binding Icons}">
+                <ItemsControl x:Name="IconItems" ItemsSource="{Binding Icons}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel Orientation="Horizontal" />
@@ -132,6 +132,7 @@
                                     Margin="2"
                                     CornerRadius="3"
                                     MouseLeftButtonDown="Icon_MouseLeftButtonDown"
+                                    MouseLeftButtonUp="Icon_MouseLeftButtonUp"
                                     MouseRightButtonUp="Icon_RightClick"
                                     MouseMove="Icon_MouseMove"
                                     Cursor="Hand"
@@ -141,10 +142,17 @@
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                        <Setter Property="BorderThickness" Value="1.5" />
                                         <Style.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
                                                 <Setter Property="Background" Value="{DynamicResource PaddockIconHover}" />
                                             </Trigger>
+                                            <!-- Found with the desktop search's "Find place" -->
+                                            <DataTrigger Binding="{Binding IsSpotlit}" Value="True">
+                                                <Setter Property="Background" Value="#5500D1FF" />
+                                                <Setter Property="BorderBrush" Value="{StaticResource D.Accent}" />
+                                            </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>

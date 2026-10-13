@@ -90,6 +90,15 @@ internal sealed class ConfigManager
             config.Settings.StartupConfig = current.StartupConfig;
             config.Settings.StartWithWindows = current.StartWithWindows;
             config.Settings.ResolutionDefaults = current.ResolutionDefaults;
+            config.Settings.IconOpenMode = current.IconOpenMode;
+            config.Settings.SearchHotkey = current.SearchHotkey;
+            config.Settings.SearchBoxAlwaysVisible = current.SearchBoxAlwaysVisible;
+            config.Settings.SearchBoxPosition = current.SearchBoxPosition;
+            config.Settings.SearchBoxStyle = current.SearchBoxStyle;
+            config.Settings.SearchBoxColor = current.SearchBoxColor;
+            config.Settings.SearchBoxOpacity = current.SearchBoxOpacity;
+            config.Settings.SearchGlassOpacity = current.SearchGlassOpacity;
+            config.Settings.SearchOffersWeb = current.SearchOffersWeb;
 
             var corral = config.Settings.Corrals.TryGetValue(config.Settings.ActiveCorral, out var c) ? c : new CorralModel();
             var savedPads = corral.Paddocks.ToList();

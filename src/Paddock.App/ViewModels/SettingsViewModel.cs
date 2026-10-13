@@ -102,6 +102,102 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { S.RollUpExpandMode = value; Changed(); }
     }
 
+    /// <summary>"single" or "double".</summary>
+    public string IconOpenMode
+    {
+        get => S.IconOpenMode;
+        set { S.IconOpenMode = value; Changed(); }
+    }
+
+    // ===== Search =====
+
+    public bool SearchBoxAlwaysVisible
+    {
+        get => S.SearchBoxAlwaysVisible;
+        set
+        {
+            S.SearchBoxAlwaysVisible = value;
+            CurrentApp.ApplySearchBox(fitPads: true);
+            Changed();
+        }
+    }
+
+    /// <summary>"top" or "bottom".</summary>
+    public string SearchBoxPosition
+    {
+        get => S.SearchBoxPosition;
+        set
+        {
+            S.SearchBoxPosition = value;
+            CurrentApp.ApplySearchBox(fitPads: true);
+            Changed();
+        }
+    }
+
+    /// <summary>"color" or "glass".</summary>
+    public string SearchBoxStyle
+    {
+        get => S.SearchBoxStyle;
+        set
+        {
+            S.SearchBoxStyle = value;
+            CurrentApp.ApplySearchBox(fitPads: false);
+            Changed();
+            OnPropertyChanged(nameof(IsSearchColor));
+            OnPropertyChanged(nameof(SearchBoxOpacity));
+            OnPropertyChanged(nameof(SearchOpacityLabel));
+            OnPropertyChanged(nameof(SearchOpacityHint));
+        }
+    }
+
+    /// <summary>Colour and opacity only mean something for a coloured box.</summary>
+    public bool IsSearchColor => !string.Equals(S.SearchBoxStyle, "glass", StringComparison.OrdinalIgnoreCase);
+
+    public string SearchBoxColor
+    {
+        get => S.SearchBoxColor;
+        set
+        {
+            S.SearchBoxColor = value;
+            CurrentApp.ApplySearchBox(fitPads: false);
+            Changed();
+        }
+    }
+
+    /// <summary>
+    /// One slider for both looks: the colour's opacity (30–100 %), or how
+    /// strongly the glass is tinted (0–90 %).
+    /// </summary>
+    public double SearchBoxOpacity
+    {
+        get => (IsSearchColor ? S.SearchBoxOpacity : S.SearchGlassOpacity) * 100;
+        set
+        {
+            if (IsSearchColor)
+                S.SearchBoxOpacity = Math.Clamp(value / 100, 0.3, 1);
+            else
+                S.SearchGlassOpacity = Math.Clamp(value / 100, 0, 0.9);
+
+            CurrentApp.ApplySearchBox(fitPads: false);
+            Changed();
+        }
+    }
+
+    public string SearchOpacityLabel => IsSearchColor ? "Opacity" : "Glass tint";
+
+    public string SearchOpacityHint => IsSearchColor
+        ? "how solid the box is"
+        : "how dark the glass is when in use; at rest it is half that";
+
+    public bool SearchOffersWeb
+    {
+        get => S.SearchOffersWeb;
+        set { S.SearchOffersWeb = value; Changed(); }
+    }
+
+    /// <summary>"google.com.tr" — which Google the web row uses here.</summary>
+    public string SearchGoogleDomain => WebSearch.GoogleDomain(Views.SearchWindow.Country);
+
     // ===== Auto mode =====
 
     private AutoModeSettings Auto => S.AutoMode;
@@ -184,6 +280,12 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         get => S.SettingsHotkey;
         set { S.SettingsHotkey = value; HotkeysChanged(); }
+    }
+
+    public string SearchHotkey
+    {
+        get => S.SearchHotkey;
+        set { S.SearchHotkey = value; HotkeysChanged(); }
     }
 
     /// <summary>Warning shown when a shortcut is already owned by another app.</summary>

@@ -55,6 +55,22 @@ public class IconViewModel : INotifyPropertyChanged
     /// </summary>
     public ImageSource? IconImage => _iconImage;
 
+    private bool _isSpotlit;
+
+    /// <summary>Highlighted for a moment, after the desktop search pointed at it.</summary>
+    public bool IsSpotlit
+    {
+        get => _isSpotlit;
+        set
+        {
+            if (_isSpotlit == value)
+                return;
+
+            _isSpotlit = value;
+            OnPropertyChanged();
+        }
+    }
+
     public void Launch()
     {
         try

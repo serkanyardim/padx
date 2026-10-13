@@ -39,6 +39,32 @@ public partial class PaddockControl : UserControl
         BuildColorMenu();
     }
 
+    /// <summary>
+    /// Scrolls an icon into view and blinks it a few times, then leaves it lit
+    /// until <paramref name="duration"/> is up — the desktop search's "Find place".
+    /// </summary>
+    public async void Spotlight(string path, TimeSpan duration)
+    {
+        var icon = ViewModel.Icons.FirstOrDefault(i => string.Equals(i.FullPath, path, StringComparison.OrdinalIgnoreCase));
+        if (icon is null)
+            return;
+
+        // The pad may have just been expanded or shown; let it lay out first.
+        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Loaded);
+        (IconItems.ItemContainerGenerator.ContainerFromItem(icon) as FrameworkElement)?.BringIntoView();
+
+        const int blink = 260;
+        for (var i = 0; i < 5; i++)
+        {
+            icon.IsSpotlit = i % 2 == 0;
+            await Task.Delay(blink);
+        }
+
+        icon.IsSpotlit = true;
+        await Task.Delay(Math.Max(0, (int)duration.TotalMilliseconds - 5 * blink));
+        icon.IsSpotlit = false;
+    }
+
     /// <summary>Glass materials first, then "Default", then one swatch item per palette colour.</summary>
     private void BuildColorMenu()
     {
@@ -231,7 +257,10 @@ public partial class PaddockControl : UserControl
 
         var window = HostWindow;
         if (window is not null)
+        {
             ViewModel.UpdatePosition(window.Left, window.Top);
+            CurrentApp.Host?.KeepOutOfSearchStrip(window);
+        }
     }
 
     // --- Resizing ---
@@ -344,7 +373,7 @@ public partial class PaddockControl : UserControl
             return;
 
         // StackPanel has no MouseDoubleClick event, so detect it via ClickCount.
-        if (e.ClickCount == 2 && element.DataContext is IconViewModel icon)
+        if (e.ClickCount == 2 && !OpensOnSingleClick && element.DataContext is IconViewModel icon)
         {
             icon.Launch();
             _iconDragStarted = false;
@@ -354,7 +383,30 @@ public partial class PaddockControl : UserControl
 
         _iconDragStart = e.GetPosition(element);
         _iconDragStarted = false;
+        _iconPressed = element;
     }
+
+    /// <summary>Single-click mode: a press and release on the same icon, without a drag, opens it.</summary>
+    private void Icon_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        var pressed = _iconPressed;
+        _iconPressed = null;
+
+        if (!OpensOnSingleClick || _iconDragStarted || pressed != sender)
+            return;
+
+        if (sender is FrameworkElement { DataContext: IconViewModel icon })
+        {
+            icon.Launch();
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>The icon the left button went down on, until it comes up again.</summary>
+    private object? _iconPressed;
+
+    private static bool OpensOnSingleClick
+        => string.Equals(CurrentApp.Settings.Settings.IconOpenMode, "single", StringComparison.OrdinalIgnoreCase);
 
     private void Icon_MouseMove(object sender, MouseEventArgs e)
     {

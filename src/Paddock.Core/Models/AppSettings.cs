@@ -32,6 +32,35 @@ public class AppSettings
     /// <summary>Global shortcut that opens the settings window.</summary>
     public string SettingsHotkey { get; set; } = "Ctrl+Alt+P";
 
+    /// <summary>Global shortcut that opens the desktop search.</summary>
+    public string SearchHotkey { get; set; } = "Alt+Q";
+
+    /// <summary>
+    /// Keeps the search box on the desktop all the time, instead of only when
+    /// its shortcut is pressed. Pads stay out of the strip it sits in.
+    /// </summary>
+    public bool SearchBoxAlwaysVisible { get; set; }
+
+    /// <summary>Where the always-visible search box sits: "top" or "bottom" of the main screen.</summary>
+    public string SearchBoxPosition { get; set; } = "top";
+
+    /// <summary>"color" (<see cref="SearchBoxColor"/> at <see cref="SearchBoxOpacity"/>) or "glass" (frosted).</summary>
+    public string SearchBoxStyle { get; set; } = "color";
+
+    public string SearchBoxColor { get; set; } = "#0B0E13";
+
+    /// <summary>0.3 – 1.</summary>
+    public double SearchBoxOpacity { get; set; } = 1.0;
+
+    /// <summary>
+    /// How dark the glass is tinted (anthracite), 0 – 0.9. That is the box in
+    /// use; at rest a docked box is tinted half as much.
+    /// </summary>
+    public double SearchGlassOpacity { get; set; } = 0.55;
+
+    /// <summary>Ends the results with "Search Google for …", on the user's country's Google.</summary>
+    public bool SearchOffersWeb { get; set; } = true;
+
     /// <summary>Ctrl + drag on empty desktop draws a new pad.</summary>
     public bool CtrlDragCreatesPad { get; set; } = true;
 
@@ -40,6 +69,9 @@ public class AppSettings
     public PadAppearance Appearance { get; set; } = new();
     public AutoModeSettings AutoMode { get; set; } = new();
     public string RollUpExpandMode { get; set; } = "click";
+
+    /// <summary>How an icon in a pad is opened: "double" (click twice, like the desktop) or "single".</summary>
+    public string IconOpenMode { get; set; } = "double";
     public string ActiveCorral { get; set; } = "default";
     public Dictionary<string, CorralModel> Corrals { get; set; } = new()
     {

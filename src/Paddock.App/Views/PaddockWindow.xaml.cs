@@ -41,9 +41,37 @@ public partial class PaddockWindow : Window
     /// <summary>The paddock's rectangle in screen coordinates (DIPs).</summary>
     public Rect ScreenBounds => new(Left, Top, Width, Height);
 
+    /// <summary>Spotlights in progress; while any is, the pad stays above other windows.</summary>
+    private int _raised;
+
+    /// <summary>
+    /// Lifts the pad above every window for a moment, so it can be seen even
+    /// with apps covering the desktop, and lights up one of its icons. Then it
+    /// goes back to desktop level.
+    /// </summary>
+    public async void Spotlight(string path)
+    {
+        var duration = TimeSpan.FromSeconds(3);
+
+        _raised++;
+        Topmost = true;
+        Pad.Spotlight(path, duration);
+
+        await Task.Delay(duration);
+
+        if (--_raised > 0)
+            return;
+
+        Topmost = false;
+        PinToDesktop();
+    }
+
     /// <summary>Re-asserts the desktop-level z-order slot.</summary>
     public void PinToDesktop()
     {
+        if (_raised > 0)
+            return;
+
         var handle = new WindowInteropHelper(this).Handle;
         if (handle != IntPtr.Zero)
             _shellHook.SendToDesktopLevel(handle);
@@ -159,7 +187,7 @@ public partial class PaddockWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == ShellHookService.WindowPosChangingMessage)
+        if (msg == ShellHookService.WindowPosChangingMessage && _raised == 0)
         {
             // Let the message continue with a corrected z-order rather than
             // handling it, so WPF still sees the move/resize.

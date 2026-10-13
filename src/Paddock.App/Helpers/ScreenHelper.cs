@@ -28,6 +28,8 @@ internal static class ScreenHelper
 
     private static IReadOnlyList<LayoutBounds>? _workAreas;
     private static double? _dipScale;
+    private static double _reservedTop;
+    private static double _reservedBottom;
 
     static ScreenHelper()
     {
@@ -55,6 +57,61 @@ internal static class ScreenHelper
             _workAreas = null;
             _dipScale = null;
         }
+    }
+
+    /// <summary>
+    /// Keeps a strip at the top or bottom of the main screen free of pads (the
+    /// always-visible search box sits there), the way the taskbar's strip is:
+    /// every work area handed out leaves it out. Zero for none.
+    /// </summary>
+    internal static void ReserveMainScreenStrip(double top, double bottom)
+    {
+        lock (Gate)
+        {
+            _reservedTop = top;
+            _reservedBottom = bottom;
+            _workAreas = null;
+        }
+    }
+
+    /// <summary>The reserved strip on the main screen, in DIPs, or null when there is none.</summary>
+    internal static LayoutBounds? ReservedStrip
+    {
+        get
+        {
+            double top, bottom;
+            lock (Gate)
+            {
+                top = _reservedTop;
+                bottom = _reservedBottom;
+            }
+
+            if (top <= 0 && bottom <= 0)
+                return null;
+
+            var full = GetFullWorkArea(underCursor: false);
+            return top > 0
+                ? new LayoutBounds(full.Left, full.Top, full.Width, top)
+                : new LayoutBounds(full.Left, full.Bottom - bottom, full.Width, bottom);
+        }
+    }
+
+    /// <summary>
+    /// A monitor's whole work area in DIPs, ignoring any reserved strip: the
+    /// one under the mouse, or the main screen.
+    /// </summary>
+    internal static LayoutBounds GetFullWorkArea(bool underCursor)
+    {
+        var screen = underCursor
+            ? Screen.FromPoint(System.Windows.Forms.Control.MousePosition)
+            : Screen.PrimaryScreen;
+
+        if (screen is null)
+            return new LayoutBounds(0, 0, SystemParameters.PrimaryScreenWidth, SystemParameters.PrimaryScreenHeight);
+
+        var scale = DipScale;
+        var area = screen.WorkingArea;
+        return new LayoutBounds(area.X / scale, area.Y / scale, area.Width / scale, area.Height / scale);
     }
 
     /// <summary>
@@ -154,11 +211,13 @@ internal static class ScreenHelper
         foreach (var screen in Screen.AllScreens)
         {
             var area = screen.WorkingArea;
+            var top = screen.Primary ? _reservedTop : 0;
+            var bottom = screen.Primary ? _reservedBottom : 0;
             areas.Add(new LayoutBounds(
                 area.X / scale,
-                area.Y / scale,
+                area.Y / scale + top,
                 area.Width / scale,
-                area.Height / scale));
+                area.Height / scale - top - bottom));
         }
 
         if (areas.Count == 0)

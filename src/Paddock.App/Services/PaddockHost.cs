@@ -380,6 +380,67 @@ internal sealed class PaddockHost : IDisposable
             RefreshAll();
     }
 
+    // --- Desktop search ---
+
+    /// <summary>
+    /// "Find place": makes the pad holding an item visible (un-hiding,
+    /// expanding it if needed), lifts it above other windows for a moment and
+    /// blinks the item.
+    /// </summary>
+    internal void Spotlight(string paddockId, string path)
+    {
+        if (FindWindow(paddockId) is not { } window || _app.PaddockManager.GetPaddock(paddockId) is not { } model)
+            return;
+
+        if (_paddocksHidden)
+            SetPaddocksVisible(true);
+
+        if (model.Hidden)
+        {
+            model.Hidden = false;
+            _app.PaddockManager.SaveLayout();
+        }
+
+        if (window.ViewModel.IsRolledUp)
+            window.ViewModel.IsRolledUp = false;
+
+        if (!window.IsVisible)
+            window.Show();
+
+        UpdateZOrderTimer();
+        window.Spotlight(path);
+    }
+
+    /// <summary>
+    /// A pad dropped onto the always-visible search box's strip is nudged just
+    /// out of it, the way it could not be dropped onto the taskbar.
+    /// </summary>
+    internal void KeepOutOfSearchStrip(PaddockWindow window)
+    {
+        if (ScreenHelper.ReservedStrip is not { } strip)
+            return;
+
+        var pad = window.ScreenBounds;
+        var overlaps = pad.Left < strip.Right && pad.Right > strip.Left && pad.Top < strip.Bottom && pad.Bottom > strip.Top;
+        if (!overlaps)
+            return;
+
+        var below = strip.Top <= ScreenHelper.GetFullWorkArea(underCursor: false).Top;
+        window.ViewModel.UpdatePosition(pad.Left, below ? strip.Bottom : strip.Top - window.ActualHeight);
+    }
+
+    /// <summary>Moves pads that no longer fit their screen (e.g. the search strip just appeared).</summary>
+    internal void FitPadsToScreens()
+    {
+        ClampAllToMonitors();
+
+        foreach (var window in _windows)
+            window.ApplyModelBounds();
+    }
+
+    /// <summary>Raised whenever the pads are pinned back to desktop level (Win+D, the timer).</summary>
+    internal event Action? Pinned;
+
     // --- Lookup ---
 
     internal PaddockWindow? FindWindow(string paddockId)
@@ -431,6 +492,8 @@ internal sealed class PaddockHost : IDisposable
             if (window.IsVisible)
                 window.PinToDesktop();
         }
+
+        Pinned?.Invoke();
     }
 
     /// <summary>

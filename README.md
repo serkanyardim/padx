@@ -36,9 +36,16 @@ desktop-style label shadows, an optional resize grip — all with a live preview
 **Configs** — Save the whole setup (settings, pads, and what is in each pad) under a name,
 load it back any time, or have one load at every startup.
 
+**Desktop search** — Press `Alt+Q` and type: everything in your pads (hidden pads too) and on
+the desktop is filtered as you type, listed as *Google Chrome [INTERNET]*. Enter or a click
+runs it; **Find place** brings its pad forward and blinks the icon. The last row searches
+Google — your country's Google, from the Windows region. Keep the box always on screen at the
+top or bottom (pads stay out of its strip), in a colour of your choice or as see-through glass.
+
 **Everyday comfort** — Ctrl + drag on empty desktop draws a new pad. The × hides a pad
-(bring hidden pads back from the tray or with a hotkey). Rename items inside pads. Restore
-everything to the desktop, sorted by type, in one step. Configurable global hotkeys.
+(bring hidden pads back from the tray or with a hotkey). Rename items inside pads. Open pad
+icons with a single or a double click. Restore everything to the desktop, sorted by type, in
+one step. Configurable global hotkeys.
 
 ## Screenshots
 
@@ -139,6 +146,7 @@ padx lives in the system tray: right-click it for **New Pad**, **Auto Organize**
 
 | Action | Keys |
 |---|---|
+| Search the desktop | `Alt+Q` |
 | Show / hide pads | `Ctrl+F12` |
 | New pad | `Ctrl+Alt+N` |
 | Roll up / expand all pads | `Ctrl+Alt+R` |

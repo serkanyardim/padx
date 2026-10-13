@@ -16,5 +16,5 @@
         MinWidth="140"
         MinHeight="32">
 
-    <views:PaddockControl />
+    <views:PaddockControl x:Name="Pad" />
 </Window>

@@ -184,6 +184,85 @@ public static class DesktopArranger
             }
         });
 
+    /// <summary>
+    /// Selects a desktop item, as a click on it would, and returns where it is
+    /// on screen (physical pixels): its grid cell. Null when the desktop does
+    /// not show it.
+    /// </summary>
+    public static (int X, int Y, int Width, int Height)? SelectItem(string path)
+    {
+        (int, int, int, int)? found = null;
+
+        WithDesktopView(viewObject =>
+        {
+            var view = (IFolderView2)viewObject;
+            if (view.ItemCount(SVGIO_ALLVIEW, out var count) != 0)
+                return false;
+
+            for (var i = 0; i < count; i++)
+            {
+                if (view.Item(i, out var pidl) != 0 || pidl == IntPtr.Zero)
+                    continue;
+
+                try
+                {
+                    if (!string.Equals(ParsingName(pidl), path, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    view.SelectItem(i, SVSI_SELECT | SVSI_DESELECTOTHERS | SVSI_ENSUREVISIBLE | SVSI_FOCUSED);
+                    view.GetItemPosition(pidl, out var position);
+                    view.GetSpacing(out var spacing);
+
+                    // Positions are in the icon view's own coordinates.
+                    var origin = new NativePoint();
+                    if (((IShellView)viewObject).GetWindow(out var hwnd) == 0)
+                        ClientToScreen(hwnd, ref origin);
+
+                    found = (origin.X + position.X, origin.Y + position.Y, spacing.X, spacing.Y);
+                    return true;
+                }
+                finally
+                {
+                    Marshal.FreeCoTaskMem(pidl);
+                }
+            }
+
+            return false;
+        });
+
+        return found;
+    }
+
+    private static string? ParsingName(IntPtr pidl)
+    {
+        if (SHGetNameFromIDList(pidl, SIGDN_DESKTOPABSOLUTEPARSING, out var namePtr) != 0 || namePtr == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            return Marshal.PtrToStringUni(namePtr);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(namePtr);
+        }
+    }
+
+    private const uint SVSI_SELECT = 0x1;
+    private const uint SVSI_DESELECTOTHERS = 0x4;
+    private const uint SVSI_ENSUREVISIBLE = 0x8;
+    private const uint SVSI_FOCUSED = 0x10;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ClientToScreen(IntPtr hWnd, ref NativePoint lpPoint);
+
     /// <summary>System-pad rank of a desktop item, or -1 for an ordinary file or folder.</summary>
     private static int SystemRank(IntPtr childPidl)
     {
@@ -308,7 +387,9 @@ public static class DesktopArranger
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IShellView
     {
-        void GetWindow();
+        [PreserveSig]
+        int GetWindow(out IntPtr phwnd);
+
         void ContextSensitiveHelp();
         void TranslateAccelerator();
         void EnableModeless();
@@ -425,10 +506,14 @@ public static class DesktopArranger
         [PreserveSig]
         int GetItemPosition(IntPtr pidl, out Point ppt);
 
-        void GetSpacing();
+        [PreserveSig]
+        int GetSpacing(out Point ppt);
+
         void GetDefaultSpacing();
         void GetAutoArrange();
-        void SelectItem();
+
+        [PreserveSig]
+        int SelectItem(int iItem, uint dwFlags);
 
         [PreserveSig]
         int SelectAndPositionItems(
