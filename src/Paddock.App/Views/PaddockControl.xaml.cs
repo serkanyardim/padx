@@ -193,23 +193,29 @@ public partial class PaddockControl : UserControl
         var settings = CurrentApp.Settings.Settings;
         if (settings.SnapEnabled)
         {
-            // Snap against the monitor the paddock is being dragged onto.
-            var bounds = ScreenHelper.GetWorkAreaFor(targetX, targetY, ViewModel.Width, ViewModel.DisplayHeight);
-            var snapped = ViewModel.SnapPosition(
-                targetX,
-                targetY,
-                CurrentApp.LayoutEngine,
-                CurrentApp.PaddockManager.GetPaddocks(),
-                bounds,
-                settings.IntelligentSpacing);
+            // Line up with the other visible pads and the edges of the monitor
+            // it is being dragged onto, as drawn on screen (rolled-up pads are short).
+            var bounds = ScreenHelper.GetWorkAreaFor(targetX, targetY, window.ActualWidth, window.ActualHeight);
+            var others = CurrentApp.Host?.Windows
+                .Where(w => w != window && w.IsVisible)
+                .Select(w => new PlacedRect(w.Left, w.Top, w.ActualWidth, w.ActualHeight))
+                .ToList() ?? [];
+
+            var snapped = SnapEngine.Snap(
+                new PlacedRect(targetX, targetY, window.ActualWidth, window.ActualHeight),
+                others, bounds, settings.IntelligentSpacing);
 
             targetX = snapped.X;
             targetY = snapped.Y;
+            Guides.Show(snapped.Guides);
         }
 
         window.Left = targetX;
         window.Top = targetY;
     }
+
+    /// <summary>Alignment guides, shared by all pads (only one is dragged at a time).</summary>
+    private static readonly SnapGuideOverlay Guides = new();
 
     private void TitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
@@ -221,6 +227,7 @@ public partial class PaddockControl : UserControl
     {
         _isDraggingWindow = false;
         TitleArea.ReleaseMouseCapture();
+        Guides.Hide();
 
         var window = HostWindow;
         if (window is not null)

@@ -488,31 +488,6 @@ public class PaddockViewModel : INotifyPropertyChanged
         _manager.SaveLayout();
     }
 
-    /// <summary>
-    /// Applies snapping to a candidate position without committing it, so the
-    /// window can follow the cursor while snapping to edges and neighbours.
-    /// </summary>
-    public (double X, double Y) SnapPosition(
-        double x, double y,
-        LayoutEngine layoutEngine,
-        IReadOnlyList<PaddockModel> allPaddocks,
-        LayoutBounds bounds,
-        double spacingGap)
-    {
-        var originalX = _model.X;
-        var originalY = _model.Y;
-
-        _model.X = x;
-        _model.Y = y;
-
-        var result = layoutEngine.SnapToEdges(_model, allPaddocks, bounds, spacingGap);
-
-        _model.X = originalX;
-        _model.Y = originalY;
-
-        return result;
-    }
-
     // --- Commands ---
 
     public void BeginRenameTitle()
