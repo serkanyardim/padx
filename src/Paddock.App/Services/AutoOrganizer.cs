@@ -100,15 +100,20 @@ internal sealed class AutoOrganizer
         // A new run implicitly keeps the previous result.
         Accept();
 
+        // Rebuilt: every unlocked pad, plus — locked or not — hidden pads (out of
+        // sight, so their contents get sorted again) and empty pads (removed).
+        // Everything is in the revert snapshot, so Revert brings them all back.
         var pads = Manager.GetPaddocks().ToList();
-        var unlocked = pads.Where(p => !p.Locked).ToList();
+        var rebuild = pads.Where(p => !p.Locked || p.Hidden || p.Icons.Count == 0).ToList();
+        var hidden = rebuild.Count(p => p.Hidden);
+        var empty = rebuild.Count(p => p.Icons.Count == 0);
         var desktopItems = _app.DesktopIconService.GetDesktopItems();
         var publicItems = _app.Settings.Settings.AutoMode.IncludeAllUsersDesktop
             ? _app.DesktopIconService.GetCommonDesktopItems()
             : [];
-        var padItems = unlocked.Sum(p => p.Icons.Count);
+        var padItems = rebuild.Sum(p => p.Icons.Count);
 
-        if (desktopItems.Count + publicItems.Count + padItems == 0)
+        if (desktopItems.Count + publicItems.Count + padItems == 0 && rebuild.Count == 0)
         {
             DigitalDialog.Inform("Nothing to organize",
                 pads.Count > 0
@@ -117,10 +122,17 @@ internal sealed class AutoOrganizer
             return;
         }
 
-        if (unlocked.Count > 0 && !DigitalDialog.Confirm("Auto organize",
-                $"{unlocked.Count} unlocked pad(s) will be taken apart and rebuilt by category, together with " +
+        var details = new List<string>();
+        if (hidden > 0) details.Add($"{hidden} hidden");
+        if (empty > 0) details.Add($"{empty} empty, which will be removed");
+        var padsLine = rebuild.Count == 0
+            ? string.Empty
+            : $"{rebuild.Count} pad(s){(details.Count > 0 ? $" ({string.Join(", ", details)})" : string.Empty)} will be taken apart and rebuilt by category, together with ";
+
+        if (rebuild.Count > 0 && !DigitalDialog.Confirm("Auto organize",
+                padsLine +
                 $"{desktopItems.Count + publicItems.Count} item(s) from the desktop.\n\n" +
-                "Locked pads stay exactly as they are. You can revert afterwards." +
+                "Locked pads that are visible and not empty stay exactly as they are. You can revert afterwards." +
                 (publicItems.Count > 0
                     ? $"\n\n{publicItems.Count} shortcut(s) are on the all-users desktop; Windows will ask for administrator permission to move them."
                     : string.Empty),
@@ -132,7 +144,7 @@ internal sealed class AutoOrganizer
         _busy = true;
         try
         {
-            await OrganizeAsync(unlocked, desktopItems, publicItems);
+            await OrganizeAsync(rebuild, desktopItems, publicItems);
         }
         finally
         {
