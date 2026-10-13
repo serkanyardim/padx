@@ -19,6 +19,8 @@ public partial class SettingsWindow : Window
 
     private static App CurrentApp => (App)Application.Current;
 
+    public void RefreshFromSettings() => _viewModel.Refresh();
+
     protected override void OnClosed(EventArgs e)
     {
         _viewModel.FlushSave();

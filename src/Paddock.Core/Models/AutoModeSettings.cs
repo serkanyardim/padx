@@ -51,7 +51,10 @@ public enum AutoColorMode
     ByCategory,
 
     /// <summary>A different random colour each run.</summary>
-    Random
+    Random,
+
+    /// <summary>Every created pad is glass (with the standard glass settings).</summary>
+    Glass
 }
 
 public enum AutoStartCorner

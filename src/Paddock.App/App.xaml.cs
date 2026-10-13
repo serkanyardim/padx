@@ -4,6 +4,7 @@ using System.Drawing.Drawing2D;
 using System.Windows;
 using Point = System.Windows.Point;
 using Paddock.App.Services;
+using Paddock.Core.Models;
 using Paddock.Core.Services;
 using Paddock.Shell;
 
@@ -306,6 +307,7 @@ public partial class App : Application
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
         menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
         menu.Items.Add(BuildConfigMenu(iconSize));
+        menu.Items.Add(BuildPadStyleMenu(iconSize));
 
         // Only there when something is hidden, and says how many.
         var showHidden = new System.Windows.Forms.ToolStripMenuItem("Show Hidden Pads", Helpers.TrayMenuIcons.ShowHidden(iconSize));
@@ -341,6 +343,34 @@ public partial class App : Application
         // The submenu gets the same look as the main menu.
         config.DropDown.Renderer = new Helpers.TrayMenuRenderer();
         return config;
+    }
+
+    /// <summary>Pad Style ▸ Custom / One Color / Glass — ticked to show the current one.</summary>
+    private System.Windows.Forms.ToolStripMenuItem BuildPadStyleMenu(int iconSize)
+    {
+        var style = new System.Windows.Forms.ToolStripMenuItem("Pad Style", Helpers.TrayMenuIcons.PadStyle(iconSize));
+        var options = new (string Text, PadStyleMode Mode)[]
+        {
+            ("Custom (each pad its own color)", PadStyleMode.Custom),
+            ("One Color (all pads the default color)", PadStyleMode.Color),
+            ("Glass (all pads)", PadStyleMode.Glass),
+        };
+
+        foreach (var (text, mode) in options)
+        {
+            var item = new System.Windows.Forms.ToolStripMenuItem(text) { Tag = mode };
+            item.Click += (_, _) => SetPadStyle(mode);
+            style.DropDownItems.Add(item);
+        }
+
+        style.DropDownOpening += (_, _) =>
+        {
+            foreach (System.Windows.Forms.ToolStripMenuItem item in style.DropDownItems)
+                item.Checked = (PadStyleMode)item.Tag! == Settings.Settings.Appearance.PadStyle;
+        };
+
+        style.DropDown.Renderer = new Helpers.TrayMenuRenderer();
+        return style;
     }
 
     private Views.ConfigsWindow? _configsWindow;
@@ -521,6 +551,15 @@ public partial class App : Application
     }
 
     private void CreateNewPaddock() => Host?.CreatePaddockInteractive();
+
+    /// <summary>Switches every pad between their own colours, one colour, or glass.</summary>
+    internal void SetPadStyle(PadStyleMode mode)
+    {
+        Settings.Settings.Appearance.PadStyle = mode;
+        Settings.Save();
+        Host?.ApplyAppearance();
+        _settingsWindow?.RefreshFromSettings();
+    }
 
     /// <summary>Menu and hotkey: bring back pads hidden with ×. Does nothing when none are hidden.</summary>
     private void ShowHiddenPads() => Host?.ShowHiddenPads();

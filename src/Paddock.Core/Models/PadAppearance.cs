@@ -10,6 +10,13 @@ public class PadAppearance
     public const double MaxBorderThickness = 3;
 
     // --- Pad surface ---
+
+    /// <summary>
+    /// One switch for every pad: their own colours, all the default colour, or
+    /// all glass. Per-pad colours are kept, so going back to Custom restores them.
+    /// </summary>
+    public PadStyleMode PadStyle { get; set; } = PadStyleMode.Custom;
+
     public string PadColor { get; set; } = "#12161C";
     public double PadOpacity { get; set; } = 0.82;
     public double CornerRadius { get; set; } = 4;
@@ -62,6 +69,18 @@ public class PadAppearance
         TitleFontSize = Math.Clamp(TitleFontSize, 8, 20);
         IconSize = Math.Clamp(IconSize, 24, 64);
     }
+}
+
+public enum PadStyleMode
+{
+    /// <summary>Each pad its own colour (or the default when it has none).</summary>
+    Custom,
+
+    /// <summary>Every pad in the default colour.</summary>
+    Color,
+
+    /// <summary>Every pad glass.</summary>
+    Glass
 }
 
 public enum LabelShadow

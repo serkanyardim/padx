@@ -35,7 +35,11 @@ public class PaddockStyle
     /// </summary>
     public string? Color { get; set; }
 
-    /// <summary>The colour this pad is actually drawn with.</summary>
-    public string EffectiveColor(PadAppearance appearance)
-        => string.IsNullOrWhiteSpace(Color) ? appearance.PadColor : Color;
+    /// <summary>The colour this pad is actually drawn with, after the all-pads style switch.</summary>
+    public string EffectiveColor(PadAppearance appearance) => appearance.PadStyle switch
+    {
+        PadStyleMode.Glass => PadMaterials.Glass,
+        PadStyleMode.Color => appearance.PadColor,
+        _ => string.IsNullOrWhiteSpace(Color) ? appearance.PadColor : Color,
+    };
 }

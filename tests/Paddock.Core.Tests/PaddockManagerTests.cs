@@ -58,6 +58,19 @@ public class PaddockManagerTests : IDisposable
         Assert.Equal("#AABBCC", style.EffectiveColor(appearance));
     }
 
+    [Theory]
+    [InlineData(PadStyleMode.Custom, "#AABBCC")]
+    [InlineData(PadStyleMode.Color, "#112233")]
+    [InlineData(PadStyleMode.Glass, "glass")]
+    public void PadStyleSwitch_OverridesWithoutLosingThePadsOwnColor(PadStyleMode mode, string expected)
+    {
+        var appearance = new PadAppearance { PadColor = "#112233", PadStyle = mode };
+        var style = new PaddockStyle { Color = "#AABBCC" };
+
+        Assert.Equal(expected, style.EffectiveColor(appearance));
+        Assert.Equal("#AABBCC", style.Color);
+    }
+
     [Fact]
     public void PadAppearance_NormalizeClampsHandEditedValues()
     {

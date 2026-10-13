@@ -426,6 +426,23 @@
 
                                 <Border Style="{StaticResource D.Row}">
                                     <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="CUSTOM"
+                                                         IsChecked="{Binding PadStyle, Converter={StaticResource Eq}, ConverterParameter=Custom}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="ONE COLOR"
+                                                         IsChecked="{Binding PadStyle, Converter={StaticResource Eq}, ConverterParameter=Color}" />
+                                            <RadioButton Style="{StaticResource D.Segment}" Content="GLASS"
+                                                         IsChecked="{Binding PadStyle, Converter={StaticResource Eq}, ConverterParameter=Glass}" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="All pads" Style="{StaticResource D.Label}" />
+                                            <TextBlock Text="custom keeps each pad's own color" Style="{StaticResource D.Hint}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource D.Row}">
+                                    <DockPanel>
                                         <controls:ColorField DockPanel.Dock="Right" VerticalAlignment="Center"
                                                              AllowMaterials="True" Color="{Binding PadColor}" />
                                         <StackPanel>
@@ -479,7 +496,7 @@
 
                                 <TextBlock Text="// GLASS" Style="{StaticResource D.Section}" />
                                 <TextBlock Style="{StaticResource D.Hint}" Margin="0,0,0,4"
-                                           Text="for pads colored glass or frost — pick it as the default color above, or per pad from its menu" />
+                                           Text="for glass and frost pads — switch every pad with all pads ▸ glass above, or per pad from its menu" />
 
                                 <StackPanel Opacity="{Binding GlassOptionsOpacity}">
                                     <Border Style="{StaticResource D.Row}">
@@ -749,6 +766,8 @@
                                                      IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=ByCategory}" />
                                         <RadioButton Style="{StaticResource D.Segment}" Content="RANDOM"
                                                      IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Random}" />
+                                        <RadioButton Style="{StaticResource D.Segment}" Content="GLASS"
+                                                     IsChecked="{Binding AutoColorMode, Converter={StaticResource Eq}, ConverterParameter=Glass}" />
                                     </StackPanel>
                                     <StackPanel>
                                         <TextBlock Text="Pad colors" Style="{StaticResource D.Label}" />

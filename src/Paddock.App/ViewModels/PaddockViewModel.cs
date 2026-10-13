@@ -283,11 +283,22 @@ public class PaddockViewModel : INotifyPropertyChanged
 
     public string EffectiveColor => _model.Style.EffectiveColor(Appearance);
 
-    /// <summary>Gives the pad its own colour, or null to follow the default again.</summary>
+    /// <summary>
+    /// Gives the pad its own colour, or null to follow the default again.
+    /// Under an all-pads style (all glass / all one colour) a pad's own colour
+    /// would not show, so picking one switches back to Custom.
+    /// </summary>
     public void SetColor(string? hex)
     {
         _model.Style.Color = PadVisuals.Normalize(hex);
         _manager.SaveLayout();
+
+        if (Appearance.PadStyle != PadStyleMode.Custom)
+        {
+            ((App)Application.Current).SetPadStyle(PadStyleMode.Custom);
+            return;
+        }
+
         ApplyAppearance();
     }
 

@@ -17,6 +17,7 @@ internal static class TrayMenuIcons
     private static readonly Color Violet = Color.FromArgb(175, 82, 222);
     private static readonly Color Teal = Color.FromArgb(48, 176, 199);
     private static readonly Color Amber = Color.FromArgb(255, 159, 10);
+    private static readonly Color Indigo = Color.FromArgb(94, 92, 230);
 
     /// <summary>Menu icon edge in device pixels for the current system DPI.</summary>
     public static int CurrentSize()
@@ -66,6 +67,15 @@ internal static class TrayMenuIcons
         g.DrawArc(pen, 3.2f, 4.6f, 9.6f, 9.6f, 210, 120);
         g.DrawArc(pen, 3.2f, 1.8f, 9.6f, 9.6f, 30, 120);
         g.FillEllipse(white, 6.4f, 6.4f, 3.2f, 3.2f);
+    });
+
+    public static Bitmap PadStyle(int size) => Draw(size, Indigo, g =>
+    {
+        // Two overlapping panes, the front one translucent: style / glass.
+        using var back = new SolidBrush(Color.FromArgb(150, 255, 255, 255));
+        using var front = new SolidBrush(Color.White);
+        g.FillRectangle(back, 4.2f, 4.2f, 5.6f, 5.6f);
+        g.FillRectangle(front, 6.4f, 6.4f, 5.6f, 5.6f);
     });
 
     public static Bitmap Settings(int size) => Draw(size, Blue, g =>

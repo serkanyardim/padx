@@ -212,7 +212,19 @@ public class SettingsViewModel : INotifyPropertyChanged
     // ===== Appearance: glass =====
 
     /// <summary>Glass options only matter when the default colour is glass, or a pad uses it.</summary>
-    public bool IsGlass => PadMaterials.IsGlass(A.PadColor);
+    public bool IsGlass => PadMaterials.IsGlass(PreviewColor);
+
+    /// <summary>The colour the preview pad shows: the default colour, unless every pad is switched to glass.</summary>
+    private string PreviewColor => A.PadStyle == PadStyleMode.Glass ? PadMaterials.Glass : A.PadColor;
+
+    public PadStyleMode PadStyle
+    {
+        get => A.PadStyle;
+        set { A.PadStyle = value; AppearanceChanged(); }
+    }
+
+    /// <summary>Re-reads everything, e.g. after the pad style was switched from the tray.</summary>
+    public void Refresh() => OnPropertyChanged(string.Empty);
 
     public double GlassOptionsOpacity => IsGlass ? 1 : 0.6;
 
@@ -317,7 +329,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     }
 
     public System.Windows.Media.Effects.Effect? PreviewLabelEffect
-        => PadVisuals.WantsLabelShadow(A.LabelShadow, A.PadColor) ? PadVisuals.LabelShadowEffect : null;
+        => PadVisuals.WantsLabelShadow(A.LabelShadow, PreviewColor) ? PadVisuals.LabelShadowEffect : null;
 
     public bool ShowIconLabels
     {
@@ -336,16 +348,16 @@ public class SettingsViewModel : INotifyPropertyChanged
     // ===== Live preview =====
 
     public Brush PreviewBackground => IsGlass
-        ? PadVisuals.GlassFill(A.PadColor, A.GlassTint)
-        : PadVisuals.Solid(A.PadColor, A.PadOpacity, Colors.Black);
+        ? PadVisuals.GlassFill(PreviewColor, A.GlassTint)
+        : PadVisuals.Solid(PreviewColor, A.PadOpacity, Colors.Black);
 
     public Brush PreviewBorderBrush => IsGlass
-        ? PadVisuals.GlassEdge(A.PadColor, A.GlassShine)
+        ? PadVisuals.GlassEdge(PreviewColor, A.GlassShine)
         : PadVisuals.Solid(A.BorderColor, 1, Colors.Transparent);
 
     public Thickness PreviewBorderThickness => new(IsGlass ? Math.Max(1, A.BorderThickness) : A.BorderThickness);
 
-    public Brush PreviewSheen => IsGlass ? PadVisuals.GlassSheen(A.PadColor, A.GlassShine) : Brushes.Transparent;
+    public Brush PreviewSheen => IsGlass ? PadVisuals.GlassSheen(PreviewColor, A.GlassShine) : Brushes.Transparent;
 
     public Visibility PreviewSheenVisibility => IsGlass ? Visibility.Visible : Visibility.Collapsed;
 
@@ -369,7 +381,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     public FontFamily PreviewTitleFont => PadVisuals.Font(A.TitleFont);
     public HorizontalAlignment PreviewTitleAlignment => PadVisuals.Align(A.TitleAlignment);
     public string PreviewTitle => A.TitleUppercase ? "WORKSPACE" : "Workspace";
-    public Brush PreviewLabelBrush => PadVisuals.LabelBrushFor(A.PadColor);
+    public Brush PreviewLabelBrush => PadVisuals.LabelBrushFor(PreviewColor);
     public Visibility PreviewLabelVisibility => A.ShowIconLabels ? Visibility.Visible : Visibility.Collapsed;
     public double PreviewIconSize => A.IconSize;
     public double PreviewCellWidth => A.IconSize + 32;

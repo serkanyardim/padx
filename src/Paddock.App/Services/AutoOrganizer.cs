@@ -639,6 +639,7 @@ internal sealed class AutoOrganizer
     {
         AutoColorMode.ByCategory => categories.Select(c => CategoryColors.GetValueOrDefault(c, CategoryColors[AutoCategory.Other])).Select(c => (string?)c).ToList(),
         AutoColorMode.Random => RandomColors(categories.Count),
+        AutoColorMode.Glass => categories.Select(_ => (string?)PadMaterials.Glass).ToList(),
         _ => categories.Select(_ => (string?)null).ToList(),
     };
 
