@@ -288,6 +288,45 @@ public static class AutoLayoutPlanner
         return placed;
     }
 
+    /// <summary>
+    /// The free position closest to where a pad wants to be: same size, fully
+    /// inside <paramref name="area"/>, clear of <paramref name="taken"/> by the
+    /// gap. Null when the area has no room for it — the caller then lets it
+    /// overlap. Used when the screen shrinks and a pad no longer fits.
+    /// </summary>
+    public static PlacedRect? FindNearestFreeSpot(PlacedRect desired, LayoutBounds area, IReadOnlyList<PlacedRect> taken, double gap)
+    {
+        var minX = area.Left + gap;
+        var maxX = area.Right - gap - desired.Width;
+        var minY = area.Top + gap;
+        var maxY = area.Bottom - gap - desired.Height;
+
+        if (maxX < minX || maxY < minY)
+            return null;
+
+        PlacedRect? best = null;
+        var bestDistance = double.MaxValue;
+
+        for (var x = minX; x <= maxX + 0.01; x += Step)
+        {
+            for (var y = minY; y <= maxY + 0.01; y += Step)
+            {
+                var distance = (x - desired.X) * (x - desired.X) + (y - desired.Y) * (y - desired.Y);
+                if (distance >= bestDistance)
+                    continue;
+
+                var candidate = new PlacedRect(Math.Min(x, maxX), Math.Min(y, maxY), desired.Width, desired.Height);
+                if (taken.Any(t => candidate.Intersects(t, gap)))
+                    continue;
+
+                best = candidate;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
     private static PlacedRect? FindSpot(
         double width, double height, LayoutBounds area, List<PlacedRect> taken, double gap, AutoStartCorner corner)
     {

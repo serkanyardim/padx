@@ -246,6 +246,28 @@ public class AutoLayoutPlannerTests
         => Assert.Null(AutoLayoutPlanner.PlanGrid(MixedCounts, 6, Metrics, LayoutBounds.FromSize(800, 600), 12, AutoStartCorner.TopLeft, keepFirst: true));
 
     [Fact]
+    public void NearestFreeSpot_MovesAPadThatFellOffAShrunkScreen_ToTheClosestGap()
+    {
+        // 2560x1440 → 1920x1080: a pad that sat at y=1200 must come up, but not onto its neighbour.
+        var neighbour = new PlacedRect(12, 700, 600, 300);
+        var lost = new PlacedRect(12, 1200, 600, 150);
+
+        var spot = AutoLayoutPlanner.FindNearestFreeSpot(lost, Screen, [neighbour], 12)!.Value;
+
+        Assert.True(spot.Bottom <= Screen.Bottom - 12);
+        Assert.False(spot.Intersects(neighbour, 11.9));
+        Assert.Equal(lost.Width, spot.Width);
+    }
+
+    [Fact]
+    public void NearestFreeSpot_IsNull_WhenTheScreenIsFull()
+    {
+        var wall = new PlacedRect(0, 0, Screen.Width, Screen.Height);
+
+        Assert.Null(AutoLayoutPlanner.FindNearestFreeSpot(new PlacedRect(100, 100, 300, 200), Screen, [wall], 12));
+    }
+
+    [Fact]
     public void Place_FromTopRight_StartsAtTheRightEdge()
     {
         var rects = AutoLayoutPlanner.Place([(200, 300)], Screen, [], 12, AutoStartCorner.TopRight);

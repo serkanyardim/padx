@@ -510,6 +510,80 @@ internal sealed class AutoOrganizer
         }
     }
 
+    /// <summary>
+    /// Arrange Pads: the same tidy table as Auto Organize, applied to the pads
+    /// that exist — each resized to fit its icons and moved into place. No pads
+    /// are created or removed and no file moves, so there is nothing to revert.
+    /// Locked pads stay put (the rest go around them); hidden pads are left alone.
+    /// </summary>
+    public void ArrangePads()
+    {
+        if (_busy || _app.Host is null)
+            return;
+
+        Accept();
+
+        var settings = _app.Settings.Settings;
+        var auto = settings.AutoMode;
+
+        var visible = Host.Windows.Where(w => w.IsVisible)
+            .Select(w => Manager.GetPaddock(w.ViewModel.Id))
+            .OfType<PaddockModel>()
+            .ToList();
+
+        var movable = visible.Where(p => !p.Locked).ToList();
+        if (movable.Count == 0)
+        {
+            DigitalDialog.Inform("Arrange pads", "There are no unlocked pads to arrange.");
+            return;
+        }
+
+        // The System pad (built-in icons) keeps its top-left place.
+        var system = movable.FirstOrDefault(p =>
+            string.Equals(p.Title, IconCategorizer.Title(AutoCategory.System), StringComparison.OrdinalIgnoreCase));
+        if (system is not null)
+        {
+            movable.Remove(system);
+            movable.Insert(0, system);
+        }
+
+        var metrics = CurrentMetrics(settings.Appearance);
+        var counts = movable.Select(p => Math.Max(1, p.Icons.Count)).ToList();
+        var sizes = counts
+            .Select(c => AutoLayoutPlanner.Measure(c, auto.MaxIconsPerRow, metrics))
+            .Select(m => (m.Width, m.Height))
+            .ToList();
+
+        var obstacles = visible.Where(p => p.Locked)
+            .Select(p => new PlacedRect(p.X, p.Y, p.Width, p.IsRolledUp ? ViewModels.PaddockViewModel.TitleBarHeight : p.Height))
+            .ToList();
+
+        var workArea = SystemParameters.WorkArea;
+        var bounds = new LayoutBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height);
+        var gap = Math.Max(8, settings.IntelligentSpacing);
+
+        var rects = PlanTable(counts, sizes, metrics, bounds, gap, system is not null, auto);
+        if (rects is null || rects.Any(r => obstacles.Any(o => r.Intersects(o, gap / 2))))
+            rects = PlanFreeform(sizes, bounds, obstacles, gap, system is not null, auto.StartCorner);
+
+        using (Manager.DeferSave())
+        {
+            for (var i = 0; i < movable.Count; i++)
+            {
+                var (pad, rect) = (movable[i], rects[i]);
+                pad.X = rect.X;
+                pad.Y = rect.Y;
+                pad.Width = rect.Width;
+                pad.Height = rect.Height;
+                Manager.SaveLayout();
+                Host.FindWindow(pad.Id)?.ApplyModelBounds();
+            }
+        }
+
+        Host.ApplyAppearance();
+        Log.Info($"Arrange pads: {movable.Count} pad(s) arranged, {obstacles.Count} locked pad(s) left in place.");
+    }
+
     /// <summary>Keeps the new layout.</summary>
     public void Accept()
     {

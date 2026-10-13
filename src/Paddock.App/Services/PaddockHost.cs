@@ -434,9 +434,12 @@ internal sealed class PaddockHost : IDisposable
     }
 
     /// <summary>
-    /// Keeps every paddock fully on a monitor — the layout is saved in screen
+    /// Keeps every pad fully on a monitor — the layout is saved in screen
     /// coordinates, so a resolution change or an unplugged display could
-    /// otherwise leave one parked off-screen.
+    /// otherwise leave one parked off-screen. Only pads that no longer fit
+    /// move, each to the nearest free gap; nothing is recreated or resized
+    /// unless it is bigger than the screen. When the screen is full, a pad may
+    /// end up overlapping another.
     /// </summary>
     private void ClampAllToMonitors()
     {
@@ -445,18 +448,46 @@ internal sealed class PaddockHost : IDisposable
             return;
 
         var moved = false;
+        var gap = Math.Max(8, _app.Settings.Settings.IntelligentSpacing);
 
-        foreach (var model in models)
+        // Pads that still fit stay exactly where they are, and are what the
+        // others must avoid. Hidden pads take no room on screen.
+        static bool Fits(PaddockModel p, LayoutBounds a)
+            => p.X >= a.Left && p.Y >= a.Top && p.X + p.Width <= a.Right && p.Y + p.Height <= a.Bottom;
+
+        var misfits = models.Where(p => !Fits(p, ScreenHelper.GetWorkAreaFor(p))).ToList();
+        var taken = models
+            .Where(p => !p.Hidden && !misfits.Contains(p))
+            .Select(p => new PlacedRect(p.X, p.Y, p.Width, p.Height))
+            .ToList();
+
+        foreach (var model in misfits)
         {
-            var before = (model.X, model.Y, model.Width, model.Height);
-            _app.LayoutEngine.ClampToBounds(model, ScreenHelper.GetWorkAreaFor(model));
+            var area = ScreenHelper.GetWorkAreaFor(model);
 
-            if (before != (model.X, model.Y, model.Width, model.Height))
-                moved = true;
+            // First squeeze it inside the screen (shrinking it only if it is
+            // bigger than the screen), then look for the nearest free gap.
+            _app.LayoutEngine.ClampToBounds(model, area);
+            var desired = new PlacedRect(model.X, model.Y, model.Width, model.Height);
+
+            if (AutoLayoutPlanner.FindNearestFreeSpot(desired, area, taken, gap) is { } spot)
+            {
+                model.X = spot.X;
+                model.Y = spot.Y;
+            }
+
+            // No gap left: it stays clamped, overlapping — better than off screen.
+            if (!model.Hidden)
+                taken.Add(new PlacedRect(model.X, model.Y, model.Width, model.Height));
+
+            moved = true;
         }
 
         if (moved)
+        {
+            Log.Info($"Screen change: {misfits.Count} pad(s) moved back on screen.");
             _app.PaddockManager.SaveLayout();
+        }
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)

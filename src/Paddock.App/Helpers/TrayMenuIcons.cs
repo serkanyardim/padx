@@ -78,6 +78,16 @@ internal static class TrayMenuIcons
         g.FillRectangle(front, 6.4f, 6.4f, 5.6f, 5.6f);
     });
 
+    public static Bitmap ArrangePads(int size) => Draw(size, Violet, g =>
+    {
+        // A tidy 2×2 grid of tiles: rearranged, nothing added.
+        using var white = new SolidBrush(Color.White);
+        g.FillRectangle(white, 4f, 4f, 3.4f, 3.4f);
+        g.FillRectangle(white, 8.6f, 4f, 3.4f, 3.4f);
+        g.FillRectangle(white, 4f, 8.6f, 3.4f, 3.4f);
+        g.FillRectangle(white, 8.6f, 8.6f, 3.4f, 3.4f);
+    });
+
     public static Bitmap Settings(int size) => Draw(size, Blue, g =>
     {
         using var white = new SolidBrush(Color.White);

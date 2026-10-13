@@ -306,6 +306,7 @@ public partial class App : Application
         };
         menu.Items.Add("New Pad", Helpers.TrayMenuIcons.NewPad(iconSize), (_, _) => CreateNewPaddock());
         menu.Items.Add("Auto Organize", Helpers.TrayMenuIcons.AutoOrganize(iconSize), (_, _) => RunAutoOrganize());
+        menu.Items.Add("Arrange Pads", Helpers.TrayMenuIcons.ArrangePads(iconSize), (_, _) => AutoOrganizer?.ArrangePads());
         menu.Items.Add(BuildConfigMenu(iconSize));
         menu.Items.Add(BuildPadStyleMenu(iconSize));
 
