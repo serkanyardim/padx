@@ -151,13 +151,14 @@ internal static class Lang
         if (_texts.Count == 0)
             return;
 
-        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        // Copies: changing a text changes the very collections being walked.
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>().ToList())
             Translate(child);
 
         switch (root)
         {
             case TextBlock text when !System.Windows.Data.BindingOperations.IsDataBound(text, TextBlock.TextProperty):
-                foreach (var run in text.Inlines.OfType<Run>())
+                foreach (var run in text.Inlines.OfType<Run>().ToList())
                     TranslateText(run, Run.TextProperty);
                 break;
 
@@ -188,8 +189,18 @@ internal static class Lang
             return;
 
         var translated = T(text);
-        if (!ReferenceEquals(translated, text))
+        if (ReferenceEquals(translated, text))
+            return;
+
+        try
+        {
             target.SetValue(property, translated);
+        }
+        catch (Exception ex)
+        {
+            // One text that cannot be set must not leave the rest of the window untranslated.
+            Log.Warn($"Could not translate \"{text}\": {ex.Message}");
+        }
     }
 
     private const string ResourcePrefix = "Paddock.App.lang.";
