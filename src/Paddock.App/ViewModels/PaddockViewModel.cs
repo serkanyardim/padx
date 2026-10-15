@@ -44,6 +44,12 @@ public class PaddockViewModel : INotifyPropertyChanged
     // --- Identity ---
     public string Id => _model.Id;
 
+    /// <summary>The Desktop pad (what no other pad holds); it cannot be deleted or filled by hand.</summary>
+    public bool IsDesktop => _model.IsDesktop;
+
+    /// <summary>Menu items that make no sense for the Desktop pad.</summary>
+    public Visibility NotDesktopVisibility => _model.IsDesktop ? Visibility.Collapsed : Visibility.Visible;
+
     // --- Geometry (screen coordinates, device-independent pixels) ---
 
     public double X => _model.X;
@@ -414,14 +420,6 @@ public class PaddockViewModel : INotifyPropertyChanged
         {
             if (e.Data.GetData(typeof(IconDragData)) is not IconDragData data || data.SourcePaddockId == Id)
                 return null;
-
-            // From padx's desktop: it simply joins this pad.
-            if (data.SourcePaddockId == Views.DesktopLayerWindow.SourceId)
-            {
-                _manager.AddIconToPaddock(Id, data.DesktopPath);
-                RefreshIcons();
-                return null;
-            }
 
             _manager.MoveIconBetweenPaddocks(data.SourcePaddockId, Id, data.DesktopPath);
             RefreshIcons();

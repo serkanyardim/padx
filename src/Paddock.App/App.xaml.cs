@@ -41,9 +41,6 @@ public partial class App : Application
     /// <summary>Owns the live paddock windows.</summary>
     internal PaddockHost? Host { get; private set; }
 
-    /// <summary>padx's desktop: the items in no pad, drawn where Windows' icons were.</summary>
-    internal Views.DesktopLayerWindow? DesktopLayer { get; private set; }
-
     /// <summary>
     /// Moves what older versions put in Desktop\.Paddock back onto the desktop
     /// and points the pads at it there. Does nothing once that is done.
@@ -162,10 +159,8 @@ public partial class App : Application
         Host.Start();
         AutoOrganizer = new AutoOrganizer(this);
 
-        // padx draws the desktop from here on: Windows' icons go, padx's come.
-        DesktopLayer = new Views.DesktopLayerWindow();
-        DesktopLayer.Show();
-        DesktopLayer.Refresh();
+        // Every desktop item is in a pad now (the Desktop pad has the rest):
+        // Windows' own icons go while padx runs.
         Host.DesktopReady();
 
         InitializeHotkeys();
@@ -465,7 +460,6 @@ public partial class App : Application
             missing = Configs.Apply(name);
         ApplyLoadedSettings();
         Host.OpenAllWindows();
-        DesktopLayer?.ScheduleRefresh();
 
         if (!quiet && missing is null)
             Views.DigitalDialog.Inform("Load config", F("\"{0}\" could not be read.", name));
@@ -846,11 +840,8 @@ public partial class App : Application
 
         // Without padx the desktop is Windows' again: its icons come back,
         // every file right where it always was.
-        if (DesktopLayer is not null)
-        {
-            DesktopLayer.Close();
+        if (Host is not null)
             ShellHookService.SetDesktopIconsVisible(true);
-        }
 
         _hotkeys?.Dispose();
         _search?.Close();

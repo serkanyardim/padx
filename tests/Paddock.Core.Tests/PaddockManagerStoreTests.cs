@@ -188,6 +188,27 @@ public class PaddockManagerStoreTests : IDisposable
     }
 
     [Fact]
+    public void DesktopPad_ReportsNewArrivals_AndDoesNotCountAsAPad()
+    {
+        var desktop = _manager.CreatePaddock("Desktop", 0, 0, 300, 250);
+        desktop.IsDesktop = true;
+        var a = MakeDesktopFile("a.txt");
+        var b = MakeDesktopFile("b.txt");
+
+        Assert.Equal([a], _manager.SetDesktopContents([a]));
+        Assert.Equal([b], _manager.SetDesktopContents([a, b]));
+        Assert.Empty(_manager.SetDesktopContents([a, b]));
+
+        // Shown in the Desktop pad, but "in no pad" as far as the rest is concerned.
+        Assert.False(_manager.IsInAnyPad(a));
+
+        var apps = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
+        _manager.AddIconToPaddock(apps.Id, a);
+        Assert.True(_manager.IsInAnyPad(a));
+        Assert.DoesNotContain(desktop.Icons, i => i.DesktopPath == a);
+    }
+
+    [Fact]
     public void IconsSurviveARestart()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);

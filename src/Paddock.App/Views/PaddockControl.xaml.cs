@@ -442,14 +442,14 @@ public partial class PaddockControl : UserControl
 
         // Dropped on the desktop, padx takes it (not Explorer, which would try
         // to move a desktop file onto itself).
-        CurrentApp.DesktopLayer?.CatchDrops(true);
+        DesktopDropCatcher.Begin();
         try
         {
             DragDrop.DoDragDrop(element, data, DragDropEffects.Move | DragDropEffects.Copy);
         }
         finally
         {
-            CurrentApp.DesktopLayer?.CatchDrops(false);
+            DesktopDropCatcher.End();
         }
 
         _iconDragStarted = false;

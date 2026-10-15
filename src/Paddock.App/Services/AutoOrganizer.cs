@@ -85,7 +85,8 @@ internal sealed class AutoOrganizer
         // sight, so their contents get sorted again) and empty pads (removed).
         // Everything is in the revert snapshot, so Revert brings them all back.
         var pads = Manager.GetPaddocks().ToList();
-        var rebuild = pads.Where(p => !p.Locked || p.Hidden || p.Icons.Count == 0).ToList();
+        // The Desktop pad is never rebuilt: its items are the ones being sorted, and it empties.
+        var rebuild = pads.Where(p => !p.IsDesktop && (!p.Locked || p.Hidden || p.Icons.Count == 0)).ToList();
         var hidden = rebuild.Count(p => p.Hidden);
         var empty = rebuild.Count(p => p.Icons.Count == 0);
         var loose = LooseItems();
@@ -129,16 +130,16 @@ internal sealed class AutoOrganizer
     }
 
     /// <summary>
-    /// What is on the desktop and in no pad — as padx's desktop shows it —
-    /// minus what Auto Mode leaves out (all-users shortcuts, built-in icons).
+    /// What the Desktop pad holds (every desktop item in no other pad), minus
+    /// what Auto Mode leaves out (all-users shortcuts, built-in icons).
     /// </summary>
     private List<string> LooseItems()
     {
         var auto = _app.Settings.Settings.AutoMode;
         var common = _app.DesktopIconService.CommonDesktopRoot;
 
-        return (_app.DesktopLayer?.Icons ?? [])
-            .Select(i => i.FullPath)
+        return (Manager.GetDesktopPad()?.Icons ?? [])
+            .Select(i => i.DesktopPath)
             .Where(p => auto.IncludeAllUsersDesktop || !string.Equals(System.IO.Path.GetDirectoryName(p), common, StringComparison.OrdinalIgnoreCase))
             .Where(p => auto.IncludeSystemIcons || !p.StartsWith(SystemIconShortcuts.Folder, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -244,7 +245,7 @@ internal sealed class AutoOrganizer
 
         var rebuilt = unlocked.Select(p => p.Id).ToHashSet();
         var obstacles = Manager.GetPaddocks()
-            .Where(p => !rebuilt.Contains(p.Id))
+            .Where(p => !rebuilt.Contains(p.Id) && !p.IsDesktop && !p.Hidden)
             .Select(p => new PlacedRect(p.X, p.Y, p.Width, p.IsRolledUp ? ViewModels.PaddockViewModel.TitleBarHeight : p.Height))
             .ToList();
 

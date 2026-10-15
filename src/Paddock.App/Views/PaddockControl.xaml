@@ -54,7 +54,7 @@
             <MenuItem Header="Rename" Click="ContextMenu_Rename" />
             <!-- Filled in code-behind from PadPalette -->
             <MenuItem x:Name="ColorMenu" Header="Color" />
-            <MenuItem Header="Fill from Desktop">
+            <MenuItem Header="Fill from Desktop" Visibility="{Binding NotDesktopVisibility}">
                 <MenuItem Header="All items" Tag="All" Click="ContextMenu_FillFromDesktop" />
                 <Separator />
                 <MenuItem Header="Shortcuts" Tag="Shortcuts" Click="ContextMenu_FillFromDesktop" />
@@ -96,7 +96,7 @@
                       IsChecked="{Binding ExcludeFromQuickHide}" />
             <Separator />
             <MenuItem Header="Hide Pad" Click="ContextMenu_Hide" />
-            <MenuItem Header="Delete Pad" Click="ContextMenu_Remove" />
+            <MenuItem Header="Delete Pad" Click="ContextMenu_Remove" Visibility="{Binding NotDesktopVisibility}" />
         </ContextMenu>
     </UserControl.ContextMenu>
 

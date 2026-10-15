@@ -386,12 +386,6 @@ public partial class SearchWindow : Window
             }
         }
 
-        // What padx's desktop shows: everything in no pad, built-in icons included.
-        foreach (var icon in app.DesktopLayer?.Icons ?? [])
-        {
-            if (icons.TryAdd(icon.FullPath, icon))
-                items.Add(new SearchItem(icon.FullPath, icon.DisplayName, null, DesktopSearch.DesktopGroup));
-        }
 
         _items = items;
         _icons = icons;
@@ -623,8 +617,6 @@ public partial class SearchWindow : Window
 
         if (result.Item.PadId is { } padId)
             CurrentApp.Host?.Spotlight(padId, result.Item.Path);
-        else
-            CurrentApp.DesktopLayer?.Spotlight(result.Item.Path);
     }
 
     private static class NativeMethods

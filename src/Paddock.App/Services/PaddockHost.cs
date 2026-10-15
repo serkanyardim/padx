@@ -55,6 +55,10 @@ internal sealed class PaddockHost : IDisposable
     /// <summary>Opens a window for every pad in the layout.</summary>
     internal void OpenAllWindows()
     {
+        // A config from before the Desktop pad has none; it gets one.
+        EnsureDesktopPad();
+        SyncDesktopPad(announce: false);
+
         foreach (var model in _app.PaddockManager.GetPaddocks().ToList())
         {
             var window = CreateWindow(model);
@@ -80,12 +84,17 @@ internal sealed class PaddockHost : IDisposable
     internal void Start()
     {
         _app.PaddockManager.ReconcilePaddocks();
+        EnsureDesktopPad();
+        SyncDesktopPad(announce: false);
         ClampAllToMonitors();
 
         foreach (var model in _app.PaddockManager.GetPaddocks().ToList())
         {
             CreateWindow(model);
         }
+
+        // Whatever changes a pad's contents changes what is left for the Desktop pad.
+        _app.PaddockManager.LayoutChanged += ScheduleDesktopSync;
 
         UpdateZOrderTimer();
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
@@ -159,6 +168,10 @@ internal sealed class PaddockHost : IDisposable
 
     internal void RemovePaddock(PaddockWindow window)
     {
+        // The Desktop pad is never removed; it just shows what no other pad holds.
+        if (IsDesktopPad(window))
+            return;
+
         _windows.Remove(window);
         var paddockId = window.ViewModel.Id;
 
@@ -192,7 +205,7 @@ internal sealed class PaddockHost : IDisposable
         if (_app.PaddockManager.GetPaddock(window.ViewModel.Id) is not { } model)
             return;
 
-        if (model.Icons.Count == 0)
+        if (model.Icons.Count == 0 && !model.IsDesktop)
         {
             RemovePaddock(window);
             return;
@@ -221,6 +234,10 @@ internal sealed class PaddockHost : IDisposable
             {
                 _app.PaddockManager.GetPaddock(window.ViewModel.Id)!.Hidden = false;
                 _app.PaddockManager.SaveLayout();
+
+                if (!ShouldShow(window))
+                    continue;
+
                 window.Show();
                 window.PinToDesktop();
             }
@@ -239,8 +256,9 @@ internal sealed class PaddockHost : IDisposable
             if (!visible && window.ViewModel.ExcludeFromQuickHide)
                 continue;
 
-            // A pad put away with its × stays away until "Show Hidden Pads".
-            if (visible && IsHiddenPad(window))
+            // A pad put away with its × stays away until "Show Hidden Pads",
+            // and an empty Desktop pad until something lands on the desktop.
+            if (visible && !ShouldShow(window))
                 continue;
 
             if (visible)
@@ -255,23 +273,17 @@ internal sealed class PaddockHost : IDisposable
         }
 
         UpdateZOrderTimer();
-
-        // Icons make way for the pads that are on screen.
-        _app.DesktopLayer?.ScheduleRefresh();
     }
 
     /// <summary>
-    /// The re-pin timer only earns its keep while something is on screen; with
-    /// every paddock hidden it would just be waking the UI thread.
+    /// Keeps the re-pin timer running: besides pinning the pads, it keeps
+    /// Windows' own desktop icons hidden (Explorer shows them again after a
+    /// restart or a refresh).
     /// </summary>
     private void UpdateZOrderTimer()
     {
-        var needed = _windows.Any(w => w.IsVisible) || _app.DesktopLayer is not null;
-
-        if (needed && !_zOrderTimer.IsEnabled)
+        if (!_zOrderTimer.IsEnabled)
             _zOrderTimer.Start();
-        else if (!needed && _zOrderTimer.IsEnabled)
-            _zOrderTimer.Stop();
     }
 
     /// <summary>Rolls every pad up, or — if they already all are — expands them all.</summary>
@@ -298,20 +310,20 @@ internal sealed class PaddockHost : IDisposable
     // --- Contents ---
 
     /// <summary>
-    /// Removes every pad. Their items never left the desktop, so they all show
-    /// on it again. Returns how many items that was.
+    /// Removes every pad but the Desktop pad. Their items never left the
+    /// desktop, so they all show in the Desktop pad. Returns how many items that was.
     /// </summary>
     internal int RestoreAllIconsToDesktop()
     {
-        var restored = _app.PaddockManager.GetPaddocks().Sum(p => p.Icons.Count);
+        var restored = _app.PaddockManager.GetPaddocks().Where(p => !p.IsDesktop).Sum(p => p.Icons.Count);
 
         using (_app.PaddockManager.DeferSave())
         {
-            foreach (var window in _windows.ToList())
+            foreach (var window in _windows.Where(w => !IsDesktopPad(w)).ToList())
                 RemovePaddock(window);
         }
 
-        _app.DesktopLayer?.ScheduleRefresh();
+        SyncDesktopPad(announce: false);
         return restored;
     }
 
@@ -395,11 +407,18 @@ internal sealed class PaddockHost : IDisposable
             window.ApplyModelBounds();
     }
 
-    /// <summary>padx's desktop is up: hide Windows' icons and keep everything pinned from now on.</summary>
+    /// <summary>The pads are up: Windows' own desktop icons go, and stay gone while padx runs.</summary>
     internal void DesktopReady()
     {
         UpdateZOrderTimer();
         PinAllToDesktop();
+    }
+
+    /// <summary>Pins every visible pad again (they land above anything padx pinned before).</summary>
+    internal void PinPads()
+    {
+        foreach (var window in _windows.Where(w => w.IsVisible))
+            window.PinToDesktop();
     }
 
     /// <summary>Raised whenever the pads are pinned back to desktop level (Win+D, the timer).</summary>
@@ -443,7 +462,7 @@ internal sealed class PaddockHost : IDisposable
 
         _windows.Add(window);
 
-        if (show && !model.Hidden && (!_paddocksHidden || viewModel.ExcludeFromQuickHide))
+        if (show && ShouldShow(window) && (!_paddocksHidden || viewModel.ExcludeFromQuickHide))
             window.Show();
 
         return window;
@@ -451,14 +470,10 @@ internal sealed class PaddockHost : IDisposable
 
     private void PinAllToDesktop()
     {
-        // padx draws the desktop: Windows' icons stay hidden (Explorer shows
-        // them again after a restart or refresh), and padx's desktop goes in
-        // first so the pads land above it.
-        if (_app.DesktopLayer is { } layer)
-        {
-            _app.ShellHookService.SetDesktopIconsVisible(false);
-            layer.PinToDesktop();
-        }
+        // While padx runs, every desktop item is in a pad — the Desktop pad
+        // holds the rest — so Windows' own icons stay hidden (Explorer shows
+        // them again after a restart or a refresh).
+        _app.ShellHookService.SetDesktopIconsVisible(false);
 
         foreach (var window in _windows)
         {
@@ -573,10 +588,11 @@ internal sealed class PaddockHost : IDisposable
         {
             FollowRenames();
             RefreshAll();
-            _app.DesktopLayer?.ScheduleRefresh();
+            SyncDesktopPad(announce: true);
 
             await Task.Delay(800);
             RefreshFromDisk();
+            SyncDesktopPad(announce: true);
         });
     }
 
@@ -612,8 +628,184 @@ internal sealed class PaddockHost : IDisposable
             if (IconStore.ItemExists(current))
             {
                 _app.PaddockManager.RepointIcon(old, current);
-                _app.DesktopLayer?.FollowRename(old, current);
+
+                // A renamed item is no newcomer: the Desktop pad need not announce it.
+                _renamedTo.Add(current);
             }
         }
+    }
+
+    // --- The Desktop pad ---
+
+    /// <summary>New names from renames, not to be announced as arrivals.</summary>
+    private readonly HashSet<string> _renamedTo = new(StringComparer.OrdinalIgnoreCase);
+
+    private DispatcherTimer? _desktopSyncTimer;
+
+    private static bool IsDesktopPad(PaddockWindow window) => window.ViewModel.IsDesktop;
+
+    /// <summary>
+    /// Shown unless put away with ×, and — for the Desktop pad — only while it
+    /// holds something.
+    /// </summary>
+    private bool ShouldShow(PaddockWindow window)
+        => _app.PaddockManager.GetPaddock(window.ViewModel.Id) is { } model
+           && !model.Hidden
+           && !(model.IsDesktop && model.Icons.Count == 0);
+
+    /// <summary>There is always one Desktop pad; the first one sits at the top right of the main screen.</summary>
+    private void EnsureDesktopPad()
+    {
+        var manager = _app.PaddockManager;
+        if (manager.GetDesktopPad() is not null)
+            return;
+
+        var area = ScreenHelper.GetWorkAreas().FirstOrDefault(a => a.Contains(1, 1));
+        if (area == default)
+            area = ScreenHelper.GetWorkAreas()[0];
+
+        var gap = Math.Max(8, _app.Settings.Settings.IntelligentSpacing);
+        var size = DesktopPadSize(4);
+        var pad = manager.CreatePaddock(Helpers.Lang.T("Desktop"), area.Right - size.Width - gap, area.Top + gap, size.Width, size.Height);
+        pad.IsDesktop = true;
+        pad.TitleVisibility = TitleVisibility.Always;
+        pad.SortBy = SortField.Manual;
+        manager.SaveLayout();
+        Log.Info("Desktop pad created.");
+    }
+
+    /// <summary>Several pad changes in a row cost one Desktop pad update.</summary>
+    private void ScheduleDesktopSync()
+    {
+        if (_desktopSyncTimer is null)
+        {
+            _desktopSyncTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _desktopSyncTimer.Tick += (_, _) =>
+            {
+                _desktopSyncTimer.Stop();
+                SyncDesktopPad(announce: false);
+            };
+        }
+
+        _desktopSyncTimer.Stop();
+        _desktopSyncTimer.Start();
+    }
+
+    /// <summary>
+    /// Fills the Desktop pad with every desktop item no other pad holds, in
+    /// "sort by item type" order: built-in icons (This PC … Recycle Bin),
+    /// folders, then files by type and name. Empty, it goes out of sight.
+    /// With <paramref name="announce"/>, newly arrived items (a download, a
+    /// new file) bring it back — even after ×, at a size that fits — and blink.
+    /// </summary>
+    internal void SyncDesktopPad(bool announce)
+    {
+        var manager = _app.PaddockManager;
+        if (manager.GetDesktopPad() is not { } model)
+            return;
+
+        var system = SystemIconShortcuts.Visible();
+        var files = _app.DesktopIconService.GetDesktopItems()
+            .Concat(_app.DesktopIconService.GetCommonDesktopItems())
+            .OrderBy(p => System.IO.Directory.Exists(p) ? 0 : 1)
+            .ThenBy(p => System.IO.Path.GetExtension(p), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => System.IO.Path.GetFileName(p), StringComparer.CurrentCultureIgnoreCase);
+
+        var loose = system.Concat(files).Where(p => !manager.IsInAnyPad(p)).ToList();
+
+        var wasEmpty = model.Icons.Count == 0;
+        var arrived = manager.SetDesktopContents(loose)
+            .Where(p => !_renamedTo.Contains(p))
+            .ToList();
+        _renamedTo.Clear();
+
+        if (FindWindow(model.Id) is not { } window)
+            return;
+
+        window.ViewModel.RefreshIcons();
+
+        if (loose.Count == 0)
+        {
+            window.Hide();
+            return;
+        }
+
+        if (announce && arrived.Count > 0)
+        {
+            Log.Info($"Desktop pad: {arrived.Count} new item(s).");
+
+            // Something new on the desktop is never left out of sight.
+            if (model.Hidden)
+            {
+                model.Hidden = false;
+                manager.SaveLayout();
+            }
+        }
+
+        if (!ShouldShow(window) || (_paddocksHidden && !window.ViewModel.ExcludeFromQuickHide))
+            return;
+
+        // Coming into view, or more to show: make it fit what it holds.
+        if (wasEmpty || !window.IsVisible || arrived.Count > 0)
+            FitDesktopPad(model, window, grow: !wasEmpty && window.IsVisible);
+
+        if (!window.IsVisible)
+        {
+            window.Show();
+            window.PinToDesktop();
+        }
+
+        if (announce)
+        {
+            foreach (var path in arrived.Take(8))
+                window.Pad.Spotlight(path, TimeSpan.FromSeconds(3));
+        }
+    }
+
+    /// <summary>
+    /// Sizes the Desktop pad to its icons (no bigger than most of the screen)
+    /// where it last was; if that would cover another pad, it moves to the
+    /// nearest free space. With <paramref name="grow"/>, it only ever grows —
+    /// a size chosen by hand is kept while the icons fit in it.
+    /// </summary>
+    private void FitDesktopPad(PaddockModel model, PaddockWindow window, bool grow)
+    {
+        var area = ScreenHelper.GetWorkAreaFor(model);
+        var size = DesktopPadSize(model.Icons.Count);
+        var width = Math.Min(grow ? Math.Max(model.Width, size.Width) : size.Width, area.Width * 0.9);
+        var height = Math.Min(grow ? Math.Max(model.Height, size.Height) : size.Height, area.Height * 0.6);
+
+        var gap = Math.Max(8, _app.Settings.Settings.IntelligentSpacing);
+        var x = Math.Clamp(model.X, area.Left, Math.Max(area.Left, area.Right - width));
+        var y = Math.Clamp(model.Y, area.Top, Math.Max(area.Top, area.Bottom - height));
+
+        var others = _windows
+            .Where(w => w != window && w.IsVisible)
+            .Select(w => new PlacedRect(w.Left, w.Top, w.ActualWidth, w.ActualHeight))
+            .ToList();
+
+        var wanted = new PlacedRect(x, y, width, height);
+        if (others.Any(o => o.Intersects(wanted, 0))
+            && AutoLayoutPlanner.FindNearestFreeSpot(wanted, area, others, gap) is { } spot)
+        {
+            x = spot.X;
+            y = spot.Y;
+        }
+
+        model.X = x;
+        model.Y = y;
+        model.Width = width;
+        model.Height = height;
+        _app.PaddockManager.SaveLayout();
+        window.ApplyModelBounds();
+    }
+
+    /// <summary>A pad that holds <paramref name="count"/> icons, the Auto Mode way (icons per row).</summary>
+    private Size DesktopPadSize(int count)
+    {
+        var settings = _app.Settings.Settings;
+        var metrics = AutoOrganizer.CurrentMetrics(settings.Appearance);
+        var measured = AutoLayoutPlanner.Measure(Math.Max(1, count), Math.Max(1, settings.AutoMode.MaxIconsPerRow), metrics);
+        return new Size(measured.Width, measured.Height);
     }
 }

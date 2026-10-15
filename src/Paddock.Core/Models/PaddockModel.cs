@@ -17,6 +17,13 @@ public class PaddockModel
 
     /// <summary>Put away with its × button; brought back with "Show Hidden Pads".</summary>
     public bool Hidden { get; set; }
+
+    /// <summary>
+    /// The Desktop pad: there is always exactly one. It shows every desktop
+    /// item that is in no other pad — its list is worked out, not kept — and
+    /// it is out of sight while that is nothing.
+    /// </summary>
+    public bool IsDesktop { get; set; }
     public SortField SortBy { get; set; } = SortField.Name;
     public bool SortAscending { get; set; } = true;
 }

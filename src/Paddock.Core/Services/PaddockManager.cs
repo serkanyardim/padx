@@ -28,9 +28,44 @@ public class PaddockManager
     /// <summary>Where the desktop is, or <c>null</c> for in-memory use.</summary>
     public IconStore? Store => _iconStore;
 
-    /// <summary>True when some pad (hidden ones included) holds this item.</summary>
+    /// <summary>
+    /// True when a pad (hidden ones included) holds this item. The Desktop pad
+    /// does not count: it shows exactly what no other pad holds.
+    /// </summary>
     public bool IsInAnyPad(string path)
-        => GetPaddocks().Any(p => FindEntry(p, path) is not null);
+        => GetPaddocks().Any(p => !p.IsDesktop && FindEntry(p, path) is not null);
+
+    /// <summary>The Desktop pad, if there is one yet.</summary>
+    public PaddockModel? GetDesktopPad() => GetPaddocks().FirstOrDefault(p => p.IsDesktop);
+
+    /// <summary>
+    /// Sets the Desktop pad's contents to <paramref name="paths"/>, in that
+    /// order. Returns the paths that were not in it before (new arrivals);
+    /// saves only when something changed.
+    /// </summary>
+    public IReadOnlyList<string> SetDesktopContents(IReadOnlyList<string> paths)
+    {
+        var pad = GetDesktopPad();
+        if (pad is null)
+            return [];
+
+        var before = pad.Icons.Select(i => i.DesktopPath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (before.Count == paths.Count && paths.Select((p, i) => PathsEqual(p, pad.Icons[i].DesktopPath)).All(same => same))
+            return [];
+
+        var arrived = paths.Where(p => !before.Contains(p)).ToList();
+        pad.Icons = paths.Select((p, i) => new IconEntry
+        {
+            DesktopPath = p,
+            Managed = _iconStore?.IsOnDesktop(p) == true,
+            GridPosition = new GridPosition { Row = i / IconsPerRow, Col = i % IconsPerRow },
+        }).ToList();
+
+        SaveLayout();
+        return arrived;
+    }
+
+    private static bool PathsEqual(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     public List<PaddockModel> GetPaddocks()
     {
@@ -76,6 +111,7 @@ public class PaddockManager
             IsRolledUp = snapshot.IsRolledUp,
             ExcludeFromQuickHide = snapshot.ExcludeFromQuickHide,
             Hidden = snapshot.Hidden,
+            IsDesktop = snapshot.IsDesktop,
             SortBy = snapshot.SortBy,
             SortAscending = snapshot.SortAscending,
         };

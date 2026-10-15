@@ -76,12 +76,6 @@ public class AppSettings
     public AutoModeSettings AutoMode { get; set; } = new();
     public string RollUpExpandMode { get; set; } = "click";
 
-    /// <summary>
-    /// Where icons were put on padx's desktop by hand: lower-case path → top-left
-    /// of its cell, in screen DIPs. Icons without a place fill the free cells.
-    /// </summary>
-    public Dictionary<string, DesktopSpot> DesktopPositions { get; set; } = new();
-
     /// <summary>How an icon in a pad is opened: "double" (click twice, like the desktop) or "single".</summary>
     public string IconOpenMode { get; set; } = "double";
     public string ActiveCorral { get; set; } = "default";
