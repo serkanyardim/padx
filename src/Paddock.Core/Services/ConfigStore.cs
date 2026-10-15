@@ -28,7 +28,7 @@ public sealed class SavedConfig
     public Dictionary<string, List<ConfigIcon>> Icons { get; set; } = new();
 }
 
-/// <summary>Saved configs as JSON files in <c>%AppData%\Paddock\configs</c>.</summary>
+/// <summary>Saved configs as JSON files in <c>%LocalAppData%\padx\configs</c>.</summary>
 public class ConfigStore
 {
     public ConfigStore(string folder)

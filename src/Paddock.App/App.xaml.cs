@@ -41,11 +41,35 @@ public partial class App : Application
     /// <summary>Owns the live paddock windows.</summary>
     internal PaddockHost? Host { get; private set; }
 
+    /// <summary>padx's desktop: the items in no pad, drawn where Windows' icons were.</summary>
+    internal Views.DesktopLayerWindow? DesktopLayer { get; private set; }
+
+    /// <summary>
+    /// Moves what older versions put in Desktop\.Paddock back onto the desktop
+    /// and points the pads at it there. Does nothing once that is done.
+    /// </summary>
+    private void ReturnLegacyItems()
+    {
+        try
+        {
+            using (Activity.Begin("returning pad items to the desktop"))
+                LegacyStoreMigration.Run(PaddockManager, IconStore, SystemIconShortcuts.ReplaceGenerated, SystemIconShortcuts.ByName);
+        }
+        catch (Exception ex)
+        {
+            // Pads still find whatever was not moved where it is.
+            Log.Error("Returning pad items to the desktop failed.", ex);
+        }
+    }
+
     internal AutoOrganizer? AutoOrganizer { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Before anything reads settings or writes the log.
+        AppPaths.MoveOldDataFolder();
 
         // Elevated helper run: do the file moves and leave. No UI, no mutex.
         if (e.Args.Length == 2 && e.Args[0] == ElevatedMover.Argument)
@@ -106,8 +130,9 @@ public partial class App : Application
 
         InitializeTrayIcon();
 
-        // If a previous run died mid Auto Organize, the desktop icons could still be hidden.
-        ShellHookService.SetDesktopIconsVisible(true);
+        // Older versions moved pad items into Desktop\.Paddock; they go back
+        // onto the desktop once, and the pads point at them there.
+        ReturnLegacyItems();
 
         // The main screen's ★ default config, if it has one, replaces the last
         // session's layout before any pad is drawn.
@@ -136,7 +161,12 @@ public partial class App : Application
         Host.Pinned += () => _search?.PinToDesktop();
         Host.Start();
         AutoOrganizer = new AutoOrganizer(this);
-        AutoOrganizer.RecoverStagedItems();
+
+        // padx draws the desktop from here on: Windows' icons go, padx's come.
+        DesktopLayer = new Views.DesktopLayerWindow();
+        DesktopLayer.Show();
+        DesktopLayer.Refresh();
+        Host.DesktopReady();
 
         InitializeHotkeys();
         UpdateDesktopDrawing();
@@ -166,7 +196,9 @@ public partial class App : Application
             PaddockManager = new PaddockManager(Settings, IconStore);
             Configs = new ConfigManager(this);
 
+            ReturnLegacyItems();
             Configs.RestoreEverything();
+            new ShellHookService().SetDesktopIconsVisible(true);
             new StartupManager().SetStartupEnabled(false);
             Log.Info("--restore-all: every icon is back on the desktop.");
         }
@@ -258,6 +290,9 @@ public partial class App : Application
                 Log.Error("Unhandled exception (terminating).", exception);
             else
                 Log.Error($"Unhandled non-exception fault: {args.ExceptionObject}");
+
+            // padx is going down: give the desktop its own icons back.
+            try { ShellHookService?.SetDesktopIconsVisible(true); } catch { }
         };
 
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
@@ -424,20 +459,13 @@ public partial class App : Application
         AutoOrganizer?.Accept();
         _settingsWindow?.Close();
 
-        ShellHookService.SetDesktopIconsVisible(false);
         int? missing;
-        try
-        {
-            Host.CloseAllWindows();
-            using (Activity.Begin($"loading config '{name}'"))
-                missing = Configs.Apply(name);
-            ApplyLoadedSettings();
-            Host.OpenAllWindows();
-        }
-        finally
-        {
-            ShellHookService.SetDesktopIconsVisible(true);
-        }
+        Host.CloseAllWindows();
+        using (Activity.Begin($"loading config '{name}'"))
+            missing = Configs.Apply(name);
+        ApplyLoadedSettings();
+        Host.OpenAllWindows();
+        DesktopLayer?.ScheduleRefresh();
 
         if (!quiet && missing is null)
             Views.DigitalDialog.Inform("Load config", F("\"{0}\" could not be read.", name));
@@ -667,8 +695,7 @@ public partial class App : Application
             return;
 
         if (!Views.DigitalDialog.Confirm("Restore all icons",
-                "Every item goes back onto the desktop, sorted by item type. Built-in icons " +
-                "(Recycle Bin, your user folder…) reappear as themselves, and the emptied pads are removed.",
+                "Every pad is removed. Their items never left the desktop, so they all show on it again.",
                 "RESTORE"))
         {
             return;
@@ -681,7 +708,7 @@ public partial class App : Application
         Views.DigitalDialog.Inform("Restore all icons",
             restored == 0
                 ? "There was nothing to restore."
-                : F("Moved {0} item(s) back to the desktop.", restored));
+                : F("{0} item(s) are on the desktop again.", restored));
     }
 
     /// <summary>Shows the settings window, or brings the open one to the front.</summary>
@@ -816,6 +843,14 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         PaddockManager?.SaveLayout();
+
+        // Without padx the desktop is Windows' again: its icons come back,
+        // every file right where it always was.
+        if (DesktopLayer is not null)
+        {
+            DesktopLayer.Close();
+            ShellHookService.SetDesktopIconsVisible(true);
+        }
 
         _hotkeys?.Dispose();
         _search?.Close();

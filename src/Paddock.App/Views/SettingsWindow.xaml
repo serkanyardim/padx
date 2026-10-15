@@ -238,7 +238,7 @@
                                             VerticalAlignment="Center" Content="RESTORE" Click="RestoreAll_Click" />
                                     <StackPanel>
                                         <TextBlock Text="Restore all icons to desktop" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="all icons back on the desktop sorted by type; empty pads are removed" Style="{StaticResource D.Hint}" />
+                                        <TextBlock Text="removes every pad; their items show on the desktop again" Style="{StaticResource D.Hint}" />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>
@@ -249,7 +249,7 @@
                                             VerticalAlignment="Center" Content="OPEN" Click="OpenFolder_Click" />
                                     <StackPanel>
                                         <TextBlock Text="Settings &amp; log folder" Style="{StaticResource D.Label}" />
-                                        <TextBlock Text="%AppData%\Paddock" Style="{StaticResource D.Hint}" />
+                                        <TextBlock Text="%LocalAppData%\padx" Style="{StaticResource D.Hint}" />
                                     </StackPanel>
                                 </DockPanel>
                             </Border>

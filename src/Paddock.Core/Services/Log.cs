@@ -3,7 +3,7 @@ using System.Diagnostics;
 namespace Paddock.Core.Services;
 
 /// <summary>
-/// Small append-only log at <c>%AppData%/Paddock/paddock.log</c>.
+/// Small append-only log at <c>%LocalAppData%/padx/paddock.log</c>.
 ///
 /// Paddock has no console and no window of its own most of the time, and
 /// <see cref="Debug"/> output is compiled out of Release builds — so without

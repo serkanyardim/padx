@@ -103,7 +103,7 @@ internal sealed class PaddockHost : IDisposable
             });
         });
 
-        _app.DesktopIconService.WatchStore(OnStoreChanged);
+        _app.DesktopIconService.WatchDesktop(OnDesktopChanged, OnDesktopRenamed);
 
         LogStartupState();
     }
@@ -116,7 +116,7 @@ internal sealed class PaddockHost : IDisposable
     {
         var monitors = ScreenHelper.GetWorkAreas();
         Log.Info($"{_windows.Count} paddock(s) restored across {monitors.Count} monitor(s) " +
-                 $"at {ScreenHelper.DipScale:0.##}x scale. Store: {_app.IconStore.StoreRoot}");
+                 $"at {ScreenHelper.DipScale:0.##}x scale. Desktop: {_app.IconStore.DesktopRoot}");
 
         foreach (var window in _windows)
         {
@@ -164,9 +164,8 @@ internal sealed class PaddockHost : IDisposable
 
         window.Close();
 
-        // Deleting the paddock moves its items back onto the desktop.
+        // Its items never left the desktop; they simply show there again.
         _app.PaddockManager.DeletePaddock(paddockId);
-        _app.DesktopIconService.NotifyShellOfDesktopChange();
         UpdateZOrderTimer();
     }
 
@@ -247,6 +246,9 @@ internal sealed class PaddockHost : IDisposable
         }
 
         UpdateZOrderTimer();
+
+        // Icons make way for the pads that are on screen.
+        _app.DesktopLayer?.ScheduleRefresh();
     }
 
     /// <summary>
@@ -255,7 +257,7 @@ internal sealed class PaddockHost : IDisposable
     /// </summary>
     private void UpdateZOrderTimer()
     {
-        var needed = _windows.Any(w => w.IsVisible);
+        var needed = _windows.Any(w => w.IsVisible) || _app.DesktopLayer is not null;
 
         if (needed && !_zOrderTimer.IsEnabled)
             _zOrderTimer.Start();
@@ -287,75 +289,21 @@ internal sealed class PaddockHost : IDisposable
     // --- Contents ---
 
     /// <summary>
-    /// Moves every item in every paddock back to the desktop. The escape hatch:
-    /// after this, nothing of the user's is left inside Paddock's folders.
+    /// Removes every pad. Their items never left the desktop, so they all show
+    /// on it again. Returns how many items that was.
     /// </summary>
     internal int RestoreAllIconsToDesktop()
     {
-        var manager = _app.PaddockManager;
-        var restored = 0;
-        var systemIconsShown = false;
+        var restored = _app.PaddockManager.GetPaddocks().Sum(p => p.Icons.Count);
 
-        using (manager.DeferSave())
+        using (_app.PaddockManager.DeferSave())
         {
-            foreach (var paddock in manager.GetPaddocks().ToList())
-            {
-                foreach (var icon in paddock.Icons.ToList())
-                {
-                    // A shortcut standing in for a built-in icon (Recycle Bin…):
-                    // the real icon comes back instead of the shortcut.
-                    if (Paddock.Shell.SystemDesktopIcons.FromTarget(
-                            Paddock.Shell.ShortcutReader.Describe(icon.DesktopPath).Target) is { } systemIcon)
-                    {
-                        manager.RemoveIconFromPaddock(paddock.Id, icon.DesktopPath);
-                        TryDelete(icon.DesktopPath);
-                        Paddock.Shell.SystemDesktopIcons.Show(systemIcon);
-                        systemIconsShown = true;
-                        restored++;
-                        continue;
-                    }
-
-                    if (manager.EjectIcon(paddock.Id, icon.DesktopPath) is not null)
-                        restored++;
-                }
-            }
-
-            // Every pad is empty now; empty pads are just clutter.
-            foreach (var window in _windows.Where(IsEmpty).ToList())
+            foreach (var window in _windows.ToList())
                 RemovePaddock(window);
         }
 
-        _app.DesktopIconService.NotifyShellOfDesktopChange();
-
-        if (systemIconsShown)
-            Paddock.Shell.SystemDesktopIcons.RefreshDesktop();
-
-        // Lay the returned icons out by kind, as "Sort by → Item type" would.
-        // Explorer needs a moment to pick up the new files first.
-        _app.Dispatcher.InvokeAsync(async () =>
-        {
-            await Task.Delay(800);
-            using (Activity.Begin("sorting the desktop by item type"))
-                Paddock.Shell.DesktopArranger.SortByItemType();
-        });
-
+        _app.DesktopLayer?.ScheduleRefresh();
         return restored;
-    }
-
-    private bool IsEmpty(PaddockWindow window)
-        => _app.PaddockManager.GetPaddock(window.ViewModel.Id)?.Icons.Count == 0;
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (System.IO.File.Exists(path))
-                System.IO.File.Delete(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"Could not delete '{path}': {ex.Message}");
-        }
     }
 
     internal void RefreshAll()
@@ -438,6 +386,13 @@ internal sealed class PaddockHost : IDisposable
             window.ApplyModelBounds();
     }
 
+    /// <summary>padx's desktop is up: hide Windows' icons and keep everything pinned from now on.</summary>
+    internal void DesktopReady()
+    {
+        UpdateZOrderTimer();
+        PinAllToDesktop();
+    }
+
     /// <summary>Raised whenever the pads are pinned back to desktop level (Win+D, the timer).</summary>
     internal event Action? Pinned;
 
@@ -487,6 +442,15 @@ internal sealed class PaddockHost : IDisposable
 
     private void PinAllToDesktop()
     {
+        // padx draws the desktop: Windows' icons stay hidden (Explorer shows
+        // them again after a restart or refresh), and padx's desktop goes in
+        // first so the pads land above it.
+        if (_app.DesktopLayer is { } layer)
+        {
+            _app.ShellHookService.SetDesktopIconsVisible(false);
+            layer.PinToDesktop();
+        }
+
         foreach (var window in _windows)
         {
             if (window.IsVisible)
@@ -576,9 +540,68 @@ internal sealed class PaddockHost : IDisposable
             _app.Dispatcher.InvokeAsync(ApplyAppearance);
     }
 
-    private void OnStoreChanged()
+    // --- Watching the desktop ---
+
+    /// <summary>Renames seen since the last settle, oldest first: (old path, new path).</summary>
+    private readonly List<(string Old, string New)> _renames = new();
+
+    /// <summary>Raised on a watcher thread for every rename; handled once things settle.</summary>
+    private void OnDesktopRenamed(string oldPath, string newPath)
     {
-        // Raised on a watcher thread — hop to the UI before touching windows.
-        _app.Dispatcher.InvokeAsync(RefreshFromDisk);
+        lock (_renames)
+            _renames.Add((oldPath, newPath));
+    }
+
+    /// <summary>
+    /// Something on the desktop changed (raised on a watcher thread, once a
+    /// burst has settled). Pads follow renames, the desktop redraws, and pads
+    /// let go of items that are gone — checked again a moment later, since a
+    /// program saving a file often deletes and recreates it.
+    /// </summary>
+    private void OnDesktopChanged()
+    {
+        _app.Dispatcher.InvokeAsync(async () =>
+        {
+            FollowRenames();
+            RefreshAll();
+            _app.DesktopLayer?.ScheduleRefresh();
+
+            await Task.Delay(800);
+            RefreshFromDisk();
+        });
+    }
+
+    /// <summary>
+    /// Points pads at the new names of renamed items. A rename chain
+    /// (a → b → c) ends where it ends; a rename whose old name is back again
+    /// was a program saving (Word renames the file, writes a new one, deletes
+    /// the old) — the pad keeps the name it had.
+    /// </summary>
+    private void FollowRenames()
+    {
+        List<(string Old, string New)> renames;
+        lock (_renames)
+        {
+            renames = _renames.ToList();
+            _renames.Clear();
+        }
+
+        foreach (var (old, _) in renames)
+        {
+            if (IconStore.ItemExists(old))
+                continue;
+
+            var current = old;
+            for (var step = 0; step < renames.Count; step++)
+            {
+                var next = renames.FirstOrDefault(r => string.Equals(r.Old, current, StringComparison.OrdinalIgnoreCase));
+                if (next.New is null)
+                    break;
+                current = next.New;
+            }
+
+            if (IconStore.ItemExists(current))
+                _app.PaddockManager.RepointIcon(old, current);
+        }
     }
 }

@@ -404,8 +404,8 @@ public class PaddockViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Takes the files described by a drop and puts them in this paddock,
-    /// moving desktop items off the desktop. Returns the id of the paddock the
+    /// Takes the items described by a drop into this paddock — they stay where
+    /// they are; the pad points at them. Returns the id of the paddock the
     /// items came from, when they came from another paddock.
     /// </summary>
     public string? HandleDrop(DragEventArgs e)
@@ -414,6 +414,14 @@ public class PaddockViewModel : INotifyPropertyChanged
         {
             if (e.Data.GetData(typeof(IconDragData)) is not IconDragData data || data.SourcePaddockId == Id)
                 return null;
+
+            // From padx's desktop: it simply joins this pad.
+            if (data.SourcePaddockId == Views.DesktopLayerWindow.SourceId)
+            {
+                _manager.AddIconToPaddock(Id, data.DesktopPath);
+                RefreshIcons();
+                return null;
+            }
 
             _manager.MoveIconBetweenPaddocks(data.SourcePaddockId, Id, data.DesktopPath);
             RefreshIcons();

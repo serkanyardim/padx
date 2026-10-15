@@ -4,25 +4,23 @@ using Paddock.Core.Services;
 namespace Paddock.Shell;
 
 /// <summary>
-/// Knows where the desktop lives and where paddocks keep their items.
+/// Knows where the desktop lives and what is on it, and watches it.
 ///
-/// Paddock stores the items it holds in a hidden folder on the desktop itself
-/// (<c>%USERPROFILE%\Desktop\.Paddock\&lt;paddock-id&gt;</c>). Moving a file in
-/// there is what makes its icon leave the desktop, because the shell only draws
-/// the top-level entries of the Desktop folder. Keeping the folder on the
-/// desktop — rather than off in AppData — means the user's files never travel
-/// far, and stay recoverable even without the app.
+/// Pads hold desktop items in place — files never leave the Desktop folder —
+/// so this service reports what is there and tells padx when something
+/// appears, disappears or is renamed (by Explorer, an installer, a save…).
 /// </summary>
 public sealed class DesktopIconService : IDisposable
 {
-    /// <summary>Name of the hidden folder holding one subfolder per paddock.</summary>
+    /// <summary>The hidden folder older versions moved pad items into; emptied once on upgrade.</summary>
     public const string StoreFolderName = ".Paddock";
 
     private static readonly string[] IgnoredNames = ["desktop.ini", "thumbs.db"];
 
-    private FileSystemWatcher? _watcher;
+    private readonly List<FileSystemWatcher> _watchers = new();
     private System.Timers.Timer? _debounce;
-    private Action? _onStoreChanged;
+    private Action? _onChanged;
+    private Action<string, string>? _onRenamed;
 
     public DesktopIconService()
     {
@@ -34,73 +32,34 @@ public sealed class DesktopIconService : IDisposable
     /// <summary>The current user's Desktop folder.</summary>
     public string DesktopRoot { get; }
 
-    /// <summary>The all-users Desktop folder (read-only for our purposes).</summary>
+    /// <summary>The all-users Desktop folder.</summary>
     public string CommonDesktopRoot { get; }
 
-    /// <summary>Parent of the per-paddock folders.</summary>
+    /// <summary>The old pad store (Desktop\.Paddock).</summary>
     public string StoreRoot { get; }
 
-    /// <summary>
-    /// Creates the store folder (hidden, so it does not itself appear as a
-    /// desktop icon) and returns a store bound to it.
-    /// </summary>
-    public IconStore CreateIconStore()
-    {
-        EnsureHiddenStoreRoot();
-        return new IconStore(DesktopRoot, StoreRoot);
-    }
+    public IconStore CreateIconStore() => new(DesktopRoot, StoreRoot);
 
     /// <summary>
-    /// Movable top-level items on the desktop — files and folders, minus shell
-    /// bookkeeping files and Paddock's own store folder.
-    ///
-    /// Items on the all-users desktop are deliberately left out: moving them
-    /// would change what every account on the machine sees (and usually needs
-    /// admin rights), so they stay where they are. They can still be dragged
-    /// into a paddock by hand, where they are referenced rather than moved.
+    /// Top-level items on the user's desktop — files and folders, minus shell
+    /// bookkeeping files, hidden items and the old pad store.
     /// </summary>
-    public IReadOnlyList<string> GetDesktopItems()
-    {
-        var items = new List<string>();
+    public IReadOnlyList<string> GetDesktopItems() => List(DesktopRoot);
 
-        if (!Directory.Exists(DesktopRoot))
-            return items;
-
-        try
-        {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(DesktopRoot))
-            {
-                if (IsHiddenOrIgnored(entry))
-                    continue;
-
-                items.Add(entry);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"Cannot list the desktop folder '{DesktopRoot}': {ex.Message}");
-        }
-
-        return items;
-    }
-
-    /// <summary>Folder in the store where all-users desktop items wait between elevated moves.</summary>
-    public const string PublicStagingFolder = "_public";
-
-    /// <summary>
-    /// Items on the all-users desktop (shortcuts installed "for everyone", and the odd folder).
-    /// Moving these needs administrator rights — see <see cref="ElevatedMover"/>.
-    /// </summary>
+    /// <summary>Items on the all-users desktop (shortcuts installed "for everyone", and the odd folder).</summary>
     public IReadOnlyList<string> GetCommonDesktopItems()
+        => string.IsNullOrEmpty(CommonDesktopRoot) ? [] : List(CommonDesktopRoot);
+
+    private IReadOnlyList<string> List(string folder)
     {
         var items = new List<string>();
 
-        if (string.IsNullOrEmpty(CommonDesktopRoot) || !Directory.Exists(CommonDesktopRoot))
+        if (!Directory.Exists(folder))
             return items;
 
         try
         {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(CommonDesktopRoot))
+            foreach (var entry in Directory.EnumerateFileSystemEntries(folder))
             {
                 if (!IsHiddenOrIgnored(entry))
                     items.Add(entry);
@@ -108,48 +67,62 @@ public sealed class DesktopIconService : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Warn($"Cannot list the all-users desktop '{CommonDesktopRoot}': {ex.Message}");
+            Log.Warn($"Cannot list the desktop folder '{folder}': {ex.Message}");
         }
 
         return items;
     }
 
-    /// <summary>
-    /// Watches the store for changes made outside the app (files dropped into a
-    /// paddock folder from Explorer, items deleted, and so on). The callback is
-    /// debounced and raised on a background thread — marshal to the UI yourself.
-    /// </summary>
-    public void WatchStore(Action onChanged)
+    /// <summary>True for an item in either Desktop folder (not in a subfolder).</summary>
+    public bool IsDesktopItem(string path)
     {
-        _onStoreChanged = onChanged;
+        var parent = Path.GetDirectoryName(path);
+        return parent is not null
+               && (string.Equals(parent, DesktopRoot, StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(parent, CommonDesktopRoot, StringComparison.OrdinalIgnoreCase));
+    }
 
-        try
+    /// <summary>
+    /// Watches both Desktop folders. <paramref name="onRenamed"/> gets every
+    /// rename (old path, new path) straight away; <paramref name="onChanged"/>
+    /// is raised once a burst of changes has settled. Both arrive on a
+    /// background thread — marshal to the UI yourself.
+    /// </summary>
+    public void WatchDesktop(Action onChanged, Action<string, string> onRenamed)
+    {
+        _onChanged = onChanged;
+        _onRenamed = onRenamed;
+
+        _debounce = new System.Timers.Timer(350) { AutoReset = false };
+        _debounce.Elapsed += (_, _) => _onChanged?.Invoke();
+
+        foreach (var folder in new[] { DesktopRoot, CommonDesktopRoot }.Where(Directory.Exists))
         {
-            EnsureHiddenStoreRoot();
-
-            _debounce = new System.Timers.Timer(400) { AutoReset = false };
-            _debounce.Elapsed += (_, _) => _onStoreChanged?.Invoke();
-
-            _watcher = new FileSystemWatcher(StoreRoot)
+            try
             {
-                IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
-                EnableRaisingEvents = true
-            };
+                var watcher = new FileSystemWatcher(folder)
+                {
+                    IncludeSubdirectories = false,
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.Attributes,
+                };
 
-            _watcher.Created += OnStoreEvent;
-            _watcher.Deleted += OnStoreEvent;
-            _watcher.Renamed += OnStoreEvent;
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Cannot watch '{StoreRoot}' for changes.", ex);
+                watcher.Created += OnEvent;
+                watcher.Deleted += OnEvent;
+                watcher.Changed += OnEvent;
+                watcher.Renamed += OnRenamedEvent;
+                watcher.Error += (_, e) => Log.Warn($"Desktop watcher: {e.GetException().Message}");
+                watcher.EnableRaisingEvents = true;
+                _watchers.Add(watcher);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Cannot watch '{folder}' for changes.", ex);
+            }
         }
     }
 
     /// <summary>
-    /// Tells the shell a folder's contents changed, so the desktop redraws
-    /// promptly after items are moved in or out.
+    /// Tells the shell the desktop's contents changed, so it redraws promptly.
     /// </summary>
     public void NotifyShellOfDesktopChange()
     {
@@ -176,47 +149,41 @@ public sealed class DesktopIconService : IDisposable
 
     public void Dispose()
     {
-        if (_watcher is not null)
+        foreach (var watcher in _watchers)
         {
-            _watcher.EnableRaisingEvents = false;
-            _watcher.Created -= OnStoreEvent;
-            _watcher.Deleted -= OnStoreEvent;
-            _watcher.Renamed -= OnStoreEvent;
-            _watcher.Dispose();
-            _watcher = null;
+            watcher.EnableRaisingEvents = false;
+            watcher.Dispose();
         }
 
+        _watchers.Clear();
         _debounce?.Dispose();
         _debounce = null;
-        _onStoreChanged = null;
+        _onChanged = null;
+        _onRenamed = null;
     }
 
-    private void OnStoreEvent(object sender, FileSystemEventArgs e)
+    private void OnEvent(object sender, FileSystemEventArgs e)
     {
-        // Collapse bursts of events (a multi-file move) into one refresh.
-        if (_debounce is null)
+        if (IsNoise(e.Name))
             return;
 
-        _debounce.Stop();
-        _debounce.Start();
+        // Collapse bursts of events (a multi-file copy) into one refresh.
+        _debounce?.Stop();
+        _debounce?.Start();
     }
 
-    private void EnsureHiddenStoreRoot()
+    private void OnRenamedEvent(object sender, RenamedEventArgs e)
     {
-        try
-        {
-            // Hidden + System: Explorer treats it as a protected OS item, so it
-            // stays out of sight even when "show hidden items" is switched on.
-            var info = Directory.CreateDirectory(StoreRoot);
-            const FileAttributes wanted = FileAttributes.Hidden | FileAttributes.System;
-            if ((info.Attributes & wanted) != wanted)
-                info.Attributes |= wanted;
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Cannot prepare the paddock store at '{StoreRoot}'.", ex);
-        }
+        if (!IsNoise(e.Name))
+            _onRenamed?.Invoke(e.OldFullPath, e.FullPath);
+
+        OnEvent(sender, e);
     }
+
+    private static bool IsNoise(string? name)
+        => name is null
+           || IgnoredNames.Contains(name, StringComparer.OrdinalIgnoreCase)
+           || string.Equals(name, StoreFolderName, StringComparison.OrdinalIgnoreCase);
 
     private bool IsHiddenOrIgnored(string path)
     {

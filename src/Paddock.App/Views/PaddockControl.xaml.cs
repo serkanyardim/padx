@@ -561,7 +561,9 @@ public partial class PaddockControl : UserControl
             return;
         }
 
-        var items = DesktopItemFilter.Filter(CurrentApp.DesktopIconService.GetDesktopItems(), category);
+        // Only what is loose on the desktop; items in other pads stay there.
+        var loose = CurrentApp.DesktopIconService.GetDesktopItems().Where(p => !CurrentApp.PaddockManager.IsInAnyPad(p));
+        var items = DesktopItemFilter.Filter(loose, category);
         var description = Lang.T(DesktopItemFilter.Describe(category));
 
         if (items.Count == 0)

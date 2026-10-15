@@ -3,8 +3,8 @@ using Paddock.Core.Services;
 namespace Paddock.Core.Tests;
 
 /// <summary>
-/// Covers <see cref="PaddockManager"/> when it is backed by a real
-/// <see cref="IconStore"/> — the path that actually takes icons off the desktop.
+/// Covers <see cref="PaddockManager"/> against real files: pads hold their
+/// items in place, so no operation may move a file off the desktop.
 /// </summary>
 public class PaddockManagerStoreTests : IDisposable
 {
@@ -40,7 +40,7 @@ public class PaddockManagerStoreTests : IDisposable
     }
 
     [Fact]
-    public void AddIconToPaddock_MovesTheFileIntoThePaddockFolder()
+    public void AddIconToPaddock_LeavesTheFileWhereItIs()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
         var file = MakeDesktopFile("app.lnk");
@@ -48,14 +48,28 @@ public class PaddockManagerStoreTests : IDisposable
         var entry = _manager.AddIconToPaddock(paddock.Id, file);
 
         Assert.NotNull(entry);
-        Assert.True(entry.Managed);
-        Assert.Equal(Path.Combine(_store, paddock.Id, "app.lnk"), entry.DesktopPath);
-        Assert.True(File.Exists(entry.DesktopPath));
-        Assert.False(File.Exists(file));
+        Assert.Equal(file, entry.DesktopPath);
+        Assert.True(File.Exists(file));
+        Assert.False(Directory.Exists(_store));
+        Assert.True(_manager.IsInAnyPad(file));
     }
 
     [Fact]
-    public void RenameIcon_RenamesTheFileAndUpdatesTheEntry()
+    public void AddIconToPaddock_TakesTheItemOutOfAnyOtherPad()
+    {
+        var first = _manager.CreatePaddock("A", 0, 0, 300, 250);
+        var second = _manager.CreatePaddock("B", 0, 0, 300, 250);
+        var file = MakeDesktopFile("app.lnk");
+
+        _manager.AddIconToPaddock(first.Id, file);
+        _manager.AddIconToPaddock(second.Id, file);
+
+        Assert.Empty(first.Icons);
+        Assert.Single(second.Icons);
+    }
+
+    [Fact]
+    public void RenameIcon_RenamesTheRealFileAndUpdatesTheEntry()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
         var entry = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("old.lnk"))!;
@@ -64,7 +78,7 @@ public class PaddockManagerStoreTests : IDisposable
         var error = _manager.RenameIcon(paddock.Id, oldPath, "new.lnk");
 
         Assert.Null(error);
-        Assert.Equal(Path.Combine(_store, paddock.Id, "new.lnk"), entry.DesktopPath);
+        Assert.Equal(Path.Combine(_desktop, "new.lnk"), entry.DesktopPath);
         Assert.True(File.Exists(entry.DesktopPath));
         Assert.False(File.Exists(oldPath));
     }
@@ -82,7 +96,7 @@ public class PaddockManagerStoreTests : IDisposable
     }
 
     [Fact]
-    public void AddIconToPaddock_ReferencesFilesFromOutsideTheDesktopWithoutMoving()
+    public void AddIconToPaddock_ReferencesFilesFromOutsideTheDesktop()
     {
         var paddock = _manager.CreatePaddock("Docs", 0, 0, 300, 250);
         var elsewhere = Path.Combine(_root, "Documents");
@@ -95,19 +109,6 @@ public class PaddockManagerStoreTests : IDisposable
         Assert.NotNull(entry);
         Assert.False(entry.Managed);
         Assert.Equal(file, entry.DesktopPath);
-        Assert.True(File.Exists(file));
-    }
-
-    [Fact]
-    public void AddIconToPaddock_DoesNotAddTheSameStoredItemTwice()
-    {
-        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        var entry = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("app.lnk"))!;
-
-        var again = _manager.AddIconToPaddock(paddock.Id, entry.DesktopPath);
-
-        Assert.Single(paddock.Icons);
-        Assert.Same(entry, again);
     }
 
     [Fact]
@@ -115,88 +116,74 @@ public class PaddockManagerStoreTests : IDisposable
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
 
-        var entry = _manager.AddIconToPaddock(paddock.Id, Path.Combine(_desktop, "ghost.lnk"));
-
-        Assert.Null(entry);
+        Assert.Null(_manager.AddIconToPaddock(paddock.Id, Path.Combine(_desktop, "gone.lnk")));
         Assert.Empty(paddock.Icons);
     }
 
     [Fact]
-    public void EjectIcon_PutsTheFileBackOnTheDesktop()
+    public void EjectIcon_KeepsTheFileOnTheDesktop()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        var entry = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("app.lnk"))!;
+        var file = MakeDesktopFile("app.lnk");
+        _manager.AddIconToPaddock(paddock.Id, file);
 
-        var ejected = _manager.EjectIcon(paddock.Id, entry.DesktopPath);
-
-        Assert.Equal(Path.Combine(_desktop, "app.lnk"), ejected);
-        Assert.True(File.Exists(ejected));
+        Assert.Equal(file, _manager.EjectIcon(paddock.Id, file));
         Assert.Empty(paddock.Icons);
+        Assert.True(File.Exists(file));
+        Assert.False(_manager.IsInAnyPad(file));
     }
 
     [Fact]
-    public void MoveIconBetweenPaddocks_MovesTheFileToo()
+    public void MoveIconBetweenPaddocks_MovesOnlyTheEntry()
     {
-        var source = _manager.CreatePaddock("Source", 0, 0, 300, 250);
-        var target = _manager.CreatePaddock("Target", 400, 0, 300, 250);
-        var entry = _manager.AddIconToPaddock(source.Id, MakeDesktopFile("app.lnk"))!;
+        var source = _manager.CreatePaddock("A", 0, 0, 300, 250);
+        var target = _manager.CreatePaddock("B", 0, 0, 300, 250);
+        var file = MakeDesktopFile("app.lnk");
+        _manager.AddIconToPaddock(source.Id, file);
 
-        _manager.MoveIconBetweenPaddocks(source.Id, target.Id, entry.DesktopPath);
+        _manager.MoveIconBetweenPaddocks(source.Id, target.Id, file);
 
         Assert.Empty(source.Icons);
-        Assert.Single(target.Icons);
-        Assert.Equal(Path.Combine(_store, target.Id, "app.lnk"), target.Icons[0].DesktopPath);
-        Assert.True(File.Exists(target.Icons[0].DesktopPath));
+        Assert.Equal(file, Assert.Single(target.Icons).DesktopPath);
+        Assert.True(File.Exists(file));
     }
 
     [Fact]
-    public void DeletePaddock_ReturnsItsIconsToTheDesktop()
+    public void DeletePaddock_LeavesItsItemsOnTheDesktop()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("a.lnk"));
-        _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("b.lnk"));
+        var file = MakeDesktopFile("app.lnk");
+        _manager.AddIconToPaddock(paddock.Id, file);
 
-        _manager.DeletePaddock(paddock.Id);
+        Assert.True(_manager.DeletePaddock(paddock.Id));
+        Assert.True(File.Exists(file));
+        Assert.False(_manager.IsInAnyPad(file));
+    }
 
-        Assert.True(File.Exists(Path.Combine(_desktop, "a.lnk")));
-        Assert.True(File.Exists(Path.Combine(_desktop, "b.lnk")));
-        Assert.False(Directory.Exists(Path.Combine(_store, paddock.Id)));
+    [Fact]
+    public void RepointIcon_FollowsARenameMadeOutsidePadx()
+    {
+        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
+        var file = MakeDesktopFile("old.txt");
+        _manager.AddIconToPaddock(paddock.Id, file);
+        var renamed = Path.Combine(_desktop, "new.txt");
+        File.Move(file, renamed);
+
+        Assert.True(_manager.RepointIcon(file, renamed));
+        Assert.Equal(renamed, Assert.Single(paddock.Icons).DesktopPath);
+        Assert.False(_manager.RepointIcon(file, renamed));
     }
 
     [Fact]
     public void ReconcilePaddocks_DropsEntriesWhoseFileIsGone()
     {
         var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        var entry = _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("app.lnk"))!;
-        File.Delete(entry.DesktopPath);
+        var file = MakeDesktopFile("app.lnk");
+        _manager.AddIconToPaddock(paddock.Id, file);
+        File.Delete(file);
 
-        var changed = _manager.ReconcilePaddocks();
-
-        Assert.True(changed);
+        Assert.True(_manager.ReconcilePaddocks());
         Assert.Empty(paddock.Icons);
-    }
-
-    [Fact]
-    public void ReconcilePaddocks_PicksUpFilesDroppedIntoThePaddockFolder()
-    {
-        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        var folder = _iconStore.EnsurePaddockFolder(paddock.Id);
-        File.WriteAllText(Path.Combine(folder, "external.txt"), "x");
-
-        var changed = _manager.ReconcilePaddocks();
-
-        Assert.True(changed);
-        Assert.Single(paddock.Icons);
-        Assert.True(paddock.Icons[0].Managed);
-        Assert.Equal(Path.Combine(folder, "external.txt"), paddock.Icons[0].DesktopPath);
-    }
-
-    [Fact]
-    public void ReconcilePaddocks_ReportsNoChangeWhenDiskAndModelAgree()
-    {
-        var paddock = _manager.CreatePaddock("Apps", 0, 0, 300, 250);
-        _manager.AddIconToPaddock(paddock.Id, MakeDesktopFile("app.lnk"));
-
         Assert.False(_manager.ReconcilePaddocks());
     }
 
@@ -212,7 +199,6 @@ public class PaddockManagerStoreTests : IDisposable
 
         var restored = Assert.Single(reloaded.GetPaddocks());
         Assert.Equal("Apps", restored.Title);
-        Assert.Single(restored.Icons);
-        Assert.True(File.Exists(restored.Icons[0].DesktopPath));
+        Assert.True(File.Exists(Assert.Single(restored.Icons).DesktopPath));
     }
 }

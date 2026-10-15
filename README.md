@@ -164,8 +164,10 @@ All of them can be changed in **Settings → Shortcuts**.
 
 ## Where things are kept
 
-- Settings, log and saved configs: `%AppData%\Paddock\`
-- Pad contents: `%USERPROFILE%\Desktop\.Paddock\` (hidden)
+- Settings, log, saved configs and the stand-ins for built-in icons (This PC, Recycle Bin…):
+  `%LocalAppData%\padx\`
+- Pad contents: nowhere special — every item stays where it is, in your Desktop folder.
+  A pad only remembers which items it shows.
 
 ## Project structure
 

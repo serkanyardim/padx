@@ -179,7 +179,7 @@ public class PaddockManagerTests : IDisposable
     }
 
     [Fact]
-    public void MoveIconBetweenPaddocks_PreventsDuplicateInTarget()
+    public void AnItemLivesInOnePadAtATime()
     {
         var manager = CreateManager();
         var source = manager.CreatePaddock("Source", 0, 0, 300, 250);
@@ -187,11 +187,13 @@ public class PaddockManagerTests : IDisposable
         manager.AddIconToPaddock(source.Id, @"C:\test.lnk");
         manager.AddIconToPaddock(target.Id, @"C:\test.lnk");
 
-        manager.MoveIconBetweenPaddocks(source.Id, target.Id, @"C:\test.lnk");
-
-        // Source still has it (move blocked), target still has one
-        Assert.Single(source.Icons);
+        // Adding it to the second pad took it out of the first.
+        Assert.Empty(source.Icons);
         Assert.Single(target.Icons);
+
+        manager.MoveIconBetweenPaddocks(target.Id, source.Id, @"C:\test.lnk");
+        Assert.Single(source.Icons);
+        Assert.Empty(target.Icons);
     }
 
     // --- Sorting ---

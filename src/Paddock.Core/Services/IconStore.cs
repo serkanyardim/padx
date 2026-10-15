@@ -1,17 +1,16 @@
 namespace Paddock.Core.Services;
 
 /// <summary>
-/// Owns the files behind a paddock's icons.
+/// Knows where desktop items live.
 ///
-/// Every paddock is backed by a real folder underneath <see cref="StoreRoot"/>.
-/// Dropping a desktop item into a paddock physically moves the file into that
-/// folder, and that is what makes the icon disappear from the desktop — the
-/// shell only draws the <em>top level</em> entries of the Desktop folder.
-/// Ejecting an item moves it straight back out to the desktop, so the user's
-/// files are never hidden somewhere they cannot find them.
+/// Pads hold their items <em>in place</em>: a pad only remembers paths, and the
+/// files stay in the Desktop folder, so every path keeps working (shortcuts,
+/// the Run box, links in documents) and Explorer shows the Desktop as it is.
+/// padx hides Windows' own desktop icons and draws the desktop itself.
 ///
-/// Only items that live on the desktop (or already inside another paddock) are
-/// ever moved. Anything dragged in from elsewhere is referenced where it is.
+/// Before that, padx moved pad items into a hidden folder on the desktop
+/// (<see cref="LegacyStoreRoot"/>, ".Paddock"). <see cref="ReturnToDesktop"/>
+/// brings such items back, once, when upgrading.
 ///
 /// Both roots are injected, so this type performs no Windows-specific calls and
 /// is unit-testable against temp directories.
@@ -20,30 +19,20 @@ public class IconStore
 {
     private static readonly string[] IgnoredNames = ["desktop.ini", "thumbs.db"];
 
-    public IconStore(string desktopRoot, string storeRoot)
+    public IconStore(string desktopRoot, string legacyStoreRoot)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(desktopRoot);
-        ArgumentException.ThrowIfNullOrWhiteSpace(storeRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(legacyStoreRoot);
 
         DesktopRoot = Normalize(desktopRoot);
-        StoreRoot = Normalize(storeRoot);
+        LegacyStoreRoot = Normalize(legacyStoreRoot);
     }
 
-    /// <summary>The user's Desktop folder — where ejected items are placed.</summary>
+    /// <summary>The user's Desktop folder.</summary>
     public string DesktopRoot { get; }
 
-    /// <summary>Parent folder holding one subfolder per paddock.</summary>
-    public string StoreRoot { get; }
-
-    public string GetPaddockFolder(string paddockId)
-        => Path.Combine(StoreRoot, paddockId);
-
-    public string EnsurePaddockFolder(string paddockId)
-    {
-        var folder = GetPaddockFolder(paddockId);
-        Directory.CreateDirectory(folder);
-        return folder;
-    }
+    /// <summary>The hidden folder older versions moved pad items into (Desktop\.Paddock).</summary>
+    public string LegacyStoreRoot { get; }
 
     /// <summary>True when the path is a direct child of the desktop folder.</summary>
     public bool IsOnDesktop(string path)
@@ -52,71 +41,27 @@ public class IconStore
         return parent is not null && PathEquals(parent, DesktopRoot);
     }
 
-    /// <summary>True when the path lives inside any paddock folder.</summary>
-    public bool IsInStore(string path)
+    /// <summary>True when the path lives inside the old pad store.</summary>
+    public bool IsInLegacyStore(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
             return false;
 
         var full = Normalize(path);
-        return full.StartsWith(StoreRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        return full.StartsWith(LegacyStoreRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// Moves an item into the given paddock's folder.
-    /// Returns the item's new path, or <c>null</c> when it was left in place
-    /// (not a desktop item, missing, or the move failed).
+    /// Moves an item from the old pad store back onto the desktop, under a
+    /// free name (" (2)" … when the name is taken). Returns its new path, or
+    /// null when it could not be moved — it is then left where it was.
     /// </summary>
-    public string? MoveIntoPaddock(string sourcePath, string paddockId)
+    public string? ReturnToDesktop(string path)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(paddockId))
-            return null;
-
-        var source = Normalize(sourcePath);
-        var folder = Normalize(GetPaddockFolder(paddockId));
-
-        // Already sitting in this paddock's folder — nothing to do.
-        var parent = GetParentDirectory(source);
-        if (parent is not null && PathEquals(parent, folder))
-            return source;
-
-        // Never relocate files from outside the desktop.
-        if (!IsOnDesktop(source) && !IsInStore(source))
-            return null;
-
-        if (!ItemExists(source))
-            return null;
-
-        try
-        {
-            Directory.CreateDirectory(folder);
-            var target = GetAvailablePath(folder, Path.GetFileName(source));
-            MoveItem(source, target);
-            return target;
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"Could not move '{source}' into paddock '{paddockId}'.", ex);
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Moves an item back out to the desktop.
-    /// Returns its new path, or <c>null</c> when nothing was moved.
-    /// </summary>
-    public string? MoveToDesktop(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
+        if (!ItemExists(path))
             return null;
 
         var source = Normalize(path);
-
-        if (!ItemExists(source))
-            return null;
-
-        if (IsOnDesktop(source))
-            return source;
 
         try
         {
@@ -132,16 +77,20 @@ public class IconStore
         }
     }
 
-    /// <summary>Lists the items physically present in a paddock's folder.</summary>
-    public IReadOnlyList<string> ListPaddockItems(string paddockId)
+    /// <summary>
+    /// Everything still in the old store: the contents of each pad folder (not
+    /// the pad folders themselves), and any stray file at its top.
+    /// </summary>
+    public IReadOnlyList<string> ListLegacyItems()
     {
-        var folder = GetPaddockFolder(paddockId);
-        if (!Directory.Exists(folder))
+        if (!Directory.Exists(LegacyStoreRoot))
             return [];
 
         try
         {
-            return Directory.EnumerateFileSystemEntries(folder)
+            return Directory.EnumerateDirectories(LegacyStoreRoot)
+                .SelectMany(Directory.EnumerateFileSystemEntries)
+                .Concat(Directory.EnumerateFiles(LegacyStoreRoot))
                 .Where(p => !IsIgnored(p))
                 .Select(Normalize)
                 .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
@@ -149,33 +98,29 @@ public class IconStore
         }
         catch (Exception ex)
         {
-            Log.Warn($"Could not list paddock '{paddockId}': {ex.Message}");
+            Log.Warn($"Could not list the old pad store: {ex.Message}");
             return [];
         }
     }
 
-    /// <summary>
-    /// Moves everything out of a paddock's folder back to the desktop and
-    /// removes the folder. Used when a paddock is deleted, so no file is ever
-    /// stranded inside a paddock that no longer exists.
-    /// </summary>
-    public void EvacuatePaddock(string paddockId)
+    /// <summary>Deletes the old store once nothing of the user's is left in it.</summary>
+    public void RemoveLegacyStoreIfEmpty()
     {
-        foreach (var item in ListPaddockItems(paddockId))
-        {
-            MoveToDesktop(item);
-        }
-
-        var folder = GetPaddockFolder(paddockId);
+        if (!Directory.Exists(LegacyStoreRoot) || ListLegacyItems().Count > 0)
+            return;
 
         try
         {
-            if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
-                Directory.Delete(folder);
+            // Hidden + system: clear the attributes so the delete is allowed everywhere.
+            foreach (var entry in Directory.EnumerateFileSystemEntries(LegacyStoreRoot, "*", SearchOption.AllDirectories).Append(LegacyStoreRoot))
+                File.SetAttributes(entry, FileAttributes.Normal | (Directory.Exists(entry) ? FileAttributes.Directory : 0));
+
+            Directory.Delete(LegacyStoreRoot, recursive: true);
+            Log.Info("The old pad store is empty and has been removed.");
         }
         catch (Exception ex)
         {
-            Log.Warn($"Could not remove the folder for paddock '{paddockId}': {ex.Message}");
+            Log.Warn($"Could not remove the old pad store: {ex.Message}");
         }
     }
 

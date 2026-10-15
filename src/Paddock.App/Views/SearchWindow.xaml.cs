@@ -386,14 +386,11 @@ public partial class SearchWindow : Window
             }
         }
 
-        foreach (var path in app.DesktopIconService.GetDesktopItems().Concat(app.DesktopIconService.GetCommonDesktopItems()))
+        // What padx's desktop shows: everything in no pad, built-in icons included.
+        foreach (var icon in app.DesktopLayer?.Icons ?? [])
         {
-            if (icons.ContainsKey(path))
-                continue;
-
-            var icon = _icons.TryGetValue(path, out var known) ? known : new IconViewModel(new IconEntry { DesktopPath = path });
-            icons[path] = icon;
-            items.Add(new SearchItem(path, icon.DisplayName, null, DesktopSearch.DesktopGroup));
+            if (icons.TryAdd(icon.FullPath, icon))
+                items.Add(new SearchItem(icon.FullPath, icon.DisplayName, null, DesktopSearch.DesktopGroup));
         }
 
         _items = items;
@@ -614,8 +611,8 @@ public partial class SearchWindow : Window
     }
 
     /// <summary>
-    /// Shows where an item is: its pad comes forward with the item blinking,
-    /// or — for one on the desktop — the item is selected and ringed.
+    /// Shows where an item is: its pad, or the desktop, comes forward for a
+    /// moment with the item blinking.
     /// </summary>
     private void FindPlace(SearchResult? result)
     {
@@ -625,20 +622,9 @@ public partial class SearchWindow : Window
         Dismiss();
 
         if (result.Item.PadId is { } padId)
-        {
             CurrentApp.Host?.Spotlight(padId, result.Item.Path);
-            return;
-        }
-
-        if (Paddock.Shell.DesktopArranger.SelectItem(result.Item.Path) is { } cell)
-        {
-            var scale = ScreenHelper.DipScale;
-            SpotlightRing.Show(new Rect(cell.X / scale, cell.Y / scale, cell.Width / scale, cell.Height / scale));
-        }
         else
-        {
-            Log.Info($"Search: '{result.Item.Path}' is not shown on the desktop.");
-        }
+            CurrentApp.DesktopLayer?.Spotlight(result.Item.Path);
     }
 
     private static class NativeMethods

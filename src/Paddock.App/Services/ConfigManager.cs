@@ -10,10 +10,11 @@ namespace Paddock.App.Services;
 /// Saves and loads named configs: every setting, every pad, and which item
 /// sits in which pad.
 ///
-/// Loading puts everything back on the desktop first, then rebuilds the saved
-/// pads (same ids, places, colours, settings) and moves each item in by its
-/// file name. Items saved in a config but since deleted are skipped; items
-/// the config never knew about stay on the desktop.
+/// Loading drops the current pads and rebuilds the saved ones (same ids,
+/// places, colours, settings), each pointing at its items again. No file
+/// moves — items are on the desktop all along. Items saved in a config but
+/// since deleted are skipped; items the config never knew about stay on the
+/// desktop.
 /// </summary>
 internal sealed class ConfigManager
 {
@@ -107,50 +108,46 @@ internal sealed class ConfigManager
 
             _app.Settings.Replace(config.Settings);
 
-            var onDesktop = _app.DesktopIconService.GetDesktopItems()
-                .GroupBy(p => Path.GetFileName(p), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
             foreach (var saved in savedPads)
             {
                 var pad = Manager.RestorePaddock(saved);
-                var folder = _app.IconStore.EnsurePaddockFolder(pad.Id);
 
                 foreach (var icon in config.Icons.GetValueOrDefault(saved.Id) ?? [])
                 {
-                    if (!PutBack(pad.Id, folder, icon, onDesktop))
+                    if (!PutBack(pad.Id, icon))
                         missing++;
                 }
             }
         }
 
-        SystemDesktopIcons.RefreshDesktop();
-        _app.DesktopIconService.NotifyShellOfDesktopChange();
         Log.Info($"Config '{name}' loaded; {missing} saved item(s) not found.");
         return missing;
     }
 
-    private bool PutBack(string padId, string folder, ConfigIcon icon, Dictionary<string, string> onDesktop)
+    /// <summary>
+    /// Puts a saved item in its pad — by its path, and for configs saved
+    /// while items still lived in Desktop\.Paddock, by its name on the desktop.
+    /// </summary>
+    private bool PutBack(string padId, ConfigIcon icon)
     {
         if (icon.SystemClsid is not null)
         {
-            var definition = SystemDesktopIcons.FromTarget("::" + icon.SystemClsid);
-            var link = Path.Combine(folder, icon.FileName);
-
-            if (definition is null || !SystemDesktopIcons.CreateShortcut(definition, link))
-                return false;
-
-            SystemDesktopIcons.Hide(definition);
-            return Manager.AddIconToPaddock(padId, link) is not null;
+            return SystemDesktopIcons.FromTarget("::" + icon.SystemClsid) is { } definition
+                   && SystemIconShortcuts.Ensure(definition) is { } link
+                   && Manager.AddIconToPaddock(padId, link) is not null;
         }
 
-        if (!icon.Managed)
-            return IconStore.ItemExists(icon.Path) && Manager.AddIconToPaddock(padId, icon.Path) is not null;
+        var byName = new[]
+        {
+            Path.Combine(_app.DesktopIconService.DesktopRoot, icon.FileName),
+            Path.Combine(_app.DesktopIconService.CommonDesktopRoot, icon.FileName),
+        };
 
-        if (!onDesktop.Remove(icon.FileName, out var path))
-            return false;
+        var found = IconStore.ItemExists(icon.Path) ? icon.Path
+            : _app.IconStore.IsInLegacyStore(icon.Path) ? byName.FirstOrDefault(IconStore.ItemExists)
+            : null;
 
-        return Manager.AddIconToPaddock(padId, path) is not null;
+        return found is not null && Manager.AddIconToPaddock(padId, found) is not null;
     }
 
     // --- Defaults per main-screen resolution ---
@@ -202,59 +199,19 @@ internal sealed class ConfigManager
     }
 
     /// <summary>
-    /// Used when padx is uninstalled: everything back on the desktop, no pads
-    /// left, built-in icons visible again — nothing stranded in the hidden
-    /// pad folders once the app is gone.
+    /// Used when padx is uninstalled: no pads left. Every item already is on
+    /// the desktop, so once Windows shows its icons again nothing is missing.
     /// </summary>
     public void RestoreEverything()
     {
         using (Manager.DeferSave())
             EmptyAllPads();
-
-        SystemDesktopIcons.RefreshDesktop();
-        _app.DesktopIconService.NotifyShellOfDesktopChange();
     }
 
-    /// <summary>
-    /// Every item back on the desktop and every pad gone; built-in icons
-    /// (This PC…) come back as themselves.
-    /// </summary>
+    /// <summary>Every pad gone; their items were on the desktop all along.</summary>
     private void EmptyAllPads()
     {
         foreach (var pad in Manager.GetPaddocks().ToList())
-        {
-            foreach (var icon in pad.Icons.ToList())
-            {
-                if (SystemDesktopIcons.FromTarget(ShortcutReader.Describe(icon.DesktopPath).Target) is { } systemIcon)
-                {
-                    Manager.RemoveIconFromPaddock(pad.Id, icon.DesktopPath);
-                    TryDelete(icon.DesktopPath);
-                    SystemDesktopIcons.Show(systemIcon);
-                }
-                else if (icon.Managed)
-                {
-                    Manager.EjectIcon(pad.Id, icon.DesktopPath);
-                }
-                else
-                {
-                    Manager.RemoveIconFromPaddock(pad.Id, icon.DesktopPath);
-                }
-            }
-
             Manager.DeletePaddock(pad.Id);
-        }
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-                File.Delete(path);
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"Could not delete '{path}': {ex.Message}");
-        }
     }
 }
