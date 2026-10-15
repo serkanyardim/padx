@@ -26,4 +26,4 @@ dotnet build src/Paddock.App --nologo -v q
 if ($LASTEXITCODE -ne 0) { Write-Host "Build failed." -ForegroundColor Red; exit 1 }
 
 Start-Process (Join-Path $PSScriptRoot 'src\Paddock.App\bin\Debug\net8.0-windows\padx.exe')
-Write-Host "padx started. Log: $env:APPDATA\Paddock\paddock.log" -ForegroundColor Green
+Write-Host "padx started. Log: $env:LOCALAPPDATA\padx\paddock.log" -ForegroundColor Green
