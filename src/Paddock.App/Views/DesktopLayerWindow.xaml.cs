@@ -66,10 +66,21 @@ public partial class DesktopLayerWindow : Window
 
     // --- Contents and layout ---
 
+    private double CellWidth => IconSize + 44;
+
+    private double CellHeight => IconSize + 50;
+
+    private static double IconSize => Math.Max(16, CurrentApp.Settings.Settings.Appearance.IconSize);
+
+    private static Dictionary<string, DesktopSpot> Spots => CurrentApp.Settings.Settings.DesktopPositions;
+
+    private static string Key(string path) => path.ToLowerInvariant();
+
     /// <summary>
-    /// Every desktop item in no pad — built-in icons first (This PC … Recycle
-    /// Bin), then folders, then files, by name — laid out down each column,
-    /// then across, skipping the cells the pads cover.
+    /// Every desktop item in no pad. Icons put somewhere by hand go back to
+    /// their place (if no pad covers it now); the rest — built-in icons first
+    /// (This PC … Recycle Bin), then folders, then files, by name — fill the
+    /// free cells down each column, then across.
     /// </summary>
     public void Refresh()
     {
@@ -84,27 +95,43 @@ public partial class DesktopLayerWindow : Window
             .Where(p => !manager.IsInAnyPad(p))
             .ToList();
 
-        var size = Math.Max(16, app.Settings.Settings.Appearance.IconSize);
-        var cellWidth = size + 44;
-        var cellHeight = size + 50;
-        var cells = FreeCells(cellWidth, cellHeight).GetEnumerator();
+        var free = FreeCells(CellWidth, CellHeight).ToList();
+        var taken = new HashSet<Point>();
+        var placed = new Dictionary<string, Point>(StringComparer.OrdinalIgnoreCase);
 
+        // Hand-placed icons first, each on the cell nearest its spot.
+        foreach (var path in items)
+        {
+            if (Spots.TryGetValue(Key(path), out var spot)
+                && Snap(new Point(spot.X, spot.Y)) is { } cell
+                && free.Contains(cell) && taken.Add(cell))
+            {
+                placed[path] = cell;
+            }
+        }
+
+        var next = free.Where(c => !taken.Contains(c)).GetEnumerator();
         var known = _icons.ToDictionary(i => i.Icon.FullPath, StringComparer.OrdinalIgnoreCase);
         var wanted = new List<LayerIcon>();
 
         foreach (var path in items)
         {
-            if (!cells.MoveNext())
+            if (!placed.TryGetValue(path, out var cell))
             {
-                Log.Warn($"Desktop: no room left for {items.Count - wanted.Count} item(s).");
-                break;
+                if (!next.MoveNext())
+                {
+                    Log.Warn($"Desktop: no room left for {items.Count - wanted.Count} item(s).");
+                    break;
+                }
+
+                cell = next.Current;
             }
 
             var icon = known.TryGetValue(path, out var existing)
                 ? existing
                 : new LayerIcon(new IconViewModel(new IconEntry { DesktopPath = path }));
 
-            icon.Place(cells.Current.X - Left, cells.Current.Y - Top, cellWidth - 4, cellHeight - 4, size);
+            icon.Place(cell.X - Left, cell.Y - Top, CellWidth - 4, CellHeight - 4, IconSize);
             wanted.Add(icon);
         }
 
@@ -120,6 +147,48 @@ public partial class DesktopLayerWindow : Window
             _icons.Add(icon);
     }
 
+    /// <summary>
+    /// The grid cell (top-left, screen DIPs) nearest a point, on the screen
+    /// holding it; null when the point is on no screen.
+    /// </summary>
+    private Point? Snap(Point point)
+    {
+        var area = ScreenHelper.GetWorkAreas().FirstOrDefault(a => a.Contains(point.X + 1, point.Y + 1));
+        if (area == default)
+            return null;
+
+        var columns = Math.Max(1, (int)((area.Width - CellMargin) / CellWidth));
+        var rows = Math.Max(1, (int)((area.Height - CellMargin) / CellHeight));
+        var column = Math.Clamp((int)Math.Round((point.X - area.Left - CellMargin) / CellWidth), 0, columns - 1);
+        var row = Math.Clamp((int)Math.Round((point.Y - area.Top - CellMargin) / CellHeight), 0, rows - 1);
+
+        return new Point(area.Left + CellMargin + column * CellWidth, area.Top + CellMargin + row * CellHeight);
+    }
+
+    /// <summary>
+    /// Puts an icon at a spot by hand (snapped to the grid), and takes the
+    /// spot from any icon that had it — that one finds a free cell instead.
+    /// </summary>
+    private void PlaceByHand(string path, Point topLeft)
+    {
+        if (Snap(topLeft) is not { } cell)
+            return;
+
+        foreach (var other in Spots.Where(s => Snap(new Point(s.Value.X, s.Value.Y)) == cell).Select(s => s.Key).ToList())
+            Spots.Remove(other);
+
+        Spots[Key(path)] = new DesktopSpot { X = cell.X, Y = cell.Y };
+        CurrentApp.Settings.Save();
+        ScheduleRefresh();
+    }
+
+    /// <summary>An item was renamed: its place on the desktop goes with it.</summary>
+    public void FollowRename(string oldPath, string newPath)
+    {
+        if (Spots.Remove(Key(oldPath), out var spot))
+            Spots[Key(newPath)] = spot;
+    }
+
     /// <summary>Grid cells (screen DIPs), main screen first, that no visible pad covers.</summary>
     private static IEnumerable<Point> FreeCells(double width, double height)
     {
@@ -132,15 +201,19 @@ public partial class DesktopLayerWindow : Window
             .OrderBy(a => a.Contains(1, 1) ? 0 : 1)
             .ThenBy(a => a.Left);
 
+        // Same arithmetic as Snap, so a snapped spot equals its cell exactly.
         foreach (var area in areas)
         {
-            for (var x = area.Left + CellMargin; x + width <= area.Right; x += width)
+            var columns = Math.Max(1, (int)((area.Width - CellMargin) / width));
+            var rows = Math.Max(1, (int)((area.Height - CellMargin) / height));
+
+            for (var column = 0; column < columns; column++)
             {
-                for (var y = area.Top + CellMargin; y + height <= area.Bottom; y += height)
+                for (var row = 0; row < rows; row++)
                 {
-                    var cell = new Rect(x, y, width, height);
+                    var cell = new Rect(area.Left + CellMargin + column * width, area.Top + CellMargin + row * height, width, height);
                     if (!pads.Any(p => p.IntersectsWith(cell)))
-                        yield return new Point(x, y);
+                        yield return cell.TopLeft;
                 }
             }
         }
@@ -286,10 +359,58 @@ public partial class DesktopLayerWindow : Window
         data.SetData(typeof(IconDragData), new IconDragData { SourcePaddockId = SourceId, DesktopPath = icon.Icon.FullPath });
         data.SetData(DataFormats.FileDrop, new[] { icon.Icon.FullPath });
 
-        DragDrop.DoDragDrop(element, data, DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Link);
+        CatchDrops(true);
+        try
+        {
+            DragDrop.DoDragDrop(element, data, DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Link);
+        }
+        finally
+        {
+            CatchDrops(false);
+        }
 
         _pressed = null;
         ScheduleRefresh();
+    }
+
+    /// <summary>
+    /// While an icon is dragged out of padx (from a pad, or across the
+    /// desktop), the desktop takes the drop itself. Left to Explorer, a desktop
+    /// file dropped on the desktop would be "moved" onto itself ("the source
+    /// and destination file names are the same"). Only during the drag: the
+    /// whole layer becomes barely-not-transparent so it can be dropped on.
+    /// </summary>
+    public void CatchDrops(bool on)
+    {
+        Background = on ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(1, 0, 0, 0)) : System.Windows.Media.Brushes.Transparent;
+        AllowDrop = on;
+    }
+
+    protected override void OnDragOver(DragEventArgs e)
+    {
+        base.OnDragOver(e);
+        e.Effects = AllowDrop ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// Dropped on the desktop: no file moves — a desktop item is there
+    /// already, and one taken out of a pad shows on the desktop again. It just
+    /// lands where it was dropped.
+    /// </summary>
+    protected override void OnDrop(DragEventArgs e)
+    {
+        base.OnDrop(e);
+        e.Effects = DragDropEffects.Move;
+        e.Handled = true;
+
+        if (e.Data.GetData(typeof(IconDragData)) is not IconDragData data)
+            return;
+
+        // From the desktop the icon keeps where it was grabbed; from a pad, it centres on the mouse.
+        var grab = data.SourcePaddockId == SourceId ? _dragStart : new Point(CellWidth / 2, CellHeight / 3);
+        var point = e.GetPosition(this);
+        PlaceByHand(data.DesktopPath, new Point(Left + point.X - grab.X, Top + point.Y - grab.Y));
     }
 
     /// <summary>Windows' own menu for the item (Open, Send to, WinRAR…, Rename, Delete).</summary>

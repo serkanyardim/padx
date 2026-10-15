@@ -244,7 +244,7 @@
                         VerticalAlignment="Top"
                         Margin="0,6,8,0"
                         Cursor="Hand"
-                        ToolTip="Hide pad (tray menu or Ctrl+Alt+H brings it back)"
+                        ToolTip="Hide pad (tray menu or Ctrl+Alt+H brings it back) · an empty pad is removed"
                         MouseLeftButtonDown="CloseButton_Click">
                     <TextBlock Text="&#xD7;"
                                FontSize="14"

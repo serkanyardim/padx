@@ -183,11 +183,20 @@ internal sealed class PaddockHost : IDisposable
     /// <summary>How many pads are put away with their × button.</summary>
     internal int HiddenPadCount => _app.PaddockManager.GetPaddocks().Count(p => p.Hidden);
 
-    /// <summary>Puts a pad away; its contents stay in it.</summary>
+    /// <summary>
+    /// The × button: puts a pad away, contents and all. An empty pad has
+    /// nothing to keep, so it is simply removed — no question asked.
+    /// </summary>
     internal void HidePaddock(PaddockWindow window)
     {
         if (_app.PaddockManager.GetPaddock(window.ViewModel.Id) is not { } model)
             return;
+
+        if (model.Icons.Count == 0)
+        {
+            RemovePaddock(window);
+            return;
+        }
 
         model.Hidden = true;
         _app.PaddockManager.SaveLayout();
@@ -601,7 +610,10 @@ internal sealed class PaddockHost : IDisposable
             }
 
             if (IconStore.ItemExists(current))
+            {
                 _app.PaddockManager.RepointIcon(old, current);
+                _app.DesktopLayer?.FollowRename(old, current);
+            }
         }
     }
 }

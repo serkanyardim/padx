@@ -440,7 +440,17 @@ public partial class PaddockControl : UserControl
         // or any other application that accepts files.
         data.SetData(DataFormats.FileDrop, new[] { icon.FullPath });
 
-        DragDrop.DoDragDrop(element, data, DragDropEffects.Move | DragDropEffects.Copy);
+        // Dropped on the desktop, padx takes it (not Explorer, which would try
+        // to move a desktop file onto itself).
+        CurrentApp.DesktopLayer?.CatchDrops(true);
+        try
+        {
+            DragDrop.DoDragDrop(element, data, DragDropEffects.Move | DragDropEffects.Copy);
+        }
+        finally
+        {
+            CurrentApp.DesktopLayer?.CatchDrops(false);
+        }
 
         _iconDragStarted = false;
         HandleIconDragFinished(icon);

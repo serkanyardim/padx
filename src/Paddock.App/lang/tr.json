@@ -338,7 +338,7 @@
 
   "// pad menu": "",
   "Hide Pad": "Pad'i Gizle",
-  "Hide pad (tray menu or Ctrl+Alt+H brings it back)": "Pad'i gizle (tepsi menüsü ya da Ctrl+Alt+H geri getirir)",
+  "Hide pad (tray menu or Ctrl+Alt+H brings it back) · an empty pad is removed": "Pad'i gizle (tepsi menüsü ya da Ctrl+Alt+H geri getirir) · boş pad silinir",
   "Delete Pad": "Pad'i Sil",
   "Lock Position": "Konumu Kilitle",
   "Roll Up / Expand": "Katla / Aç",
