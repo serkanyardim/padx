@@ -50,8 +50,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
 
 [CustomMessages]
-english.RestoreIcons=Move every icon from your padx pads back to the desktop?%n%nRecommended. If you choose No, the files stay in the hidden folder Desktop\.Paddock.
-turkish.RestoreIcons=padx pad'lerindeki tüm ikonlar masaüstüne geri taşınsın mı?%n%nÖnerilir. Hayır derseniz dosyalar gizli Desktop\.Paddock klasöründe kalır.
 english.LaunchApp=Launch padx
 turkish.LaunchApp=padx'i başlat
 
@@ -65,9 +63,10 @@ Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExe}"
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchApp}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Pads keep their files in a hidden folder on the desktop. Before padx goes,
-// offer to put everything back so nothing is left out of sight.
-// Pass /KEEPICONS to the uninstaller to skip this (used for testing).
+// Pad items stay on the desktop, so there is nothing to ask. Before padx goes
+// it tidies up after itself: Windows' desktop icons back on, and anything an
+// old version (before 3.0) left in the hidden Desktop\.Paddock folder back
+// onto the desktop. Pass /KEEPICONS to the uninstaller to skip this (testing).
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
@@ -75,8 +74,7 @@ begin
   if CurUninstallStep <> usUninstall then
     exit;
 
-  if (Pos('/KEEPICONS', Uppercase(GetCmdTail)) = 0) and
-     (SuppressibleMsgBox(CustomMessage('RestoreIcons'), mbConfirmation, MB_YESNO, IDYES) = IDYES) then
+  if Pos('/KEEPICONS', Uppercase(GetCmdTail)) = 0 then
     Exec(ExpandConstant('{app}\{#AppExe}'), '--restore-all', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   // The app sets up its own "start with Windows" (a logon task, or a Run

@@ -187,6 +187,10 @@
                     <Border Style="{StaticResource Chip}"><TextBlock Text="SNAP GUIDES" Style="{StaticResource ChipText}" /></Border>
                     <Border Style="{StaticResource Chip}"><TextBlock Text="PER-SCREEN LAYOUTS" Style="{StaticResource ChipText}" /></Border>
                     <Border Style="{StaticResource Chip}"><TextBlock Text="ARRANGE PADS" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="FILES STAY PUT" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="DESKTOP PAD" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="DESKTOP SEARCH" Style="{StaticResource ChipText}" /></Border>
+                    <Border Style="{StaticResource Chip}"><TextBlock Text="TÜRKÇE" Style="{StaticResource ChipText}" /></Border>
                 </WrapPanel>
 
                 <TextBlock Margin="0,18,0,0" FontFamily="{StaticResource D.Mono}" FontSize="9.5"

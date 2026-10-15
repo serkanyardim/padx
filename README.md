@@ -16,17 +16,27 @@ pads that group your icons, sorted for you, styled the way you like.
 always below your apps, never stealing focus. Move by the title bar, resize from the corner,
 double-click the title to roll a pad up. Win+D (show desktop) keeps them visible.
 
+**Your files stay where they are** — A pad only shows items; every file stays in your Desktop
+folder. Paths keep working everywhere (shortcuts, the Run box, links in documents) and
+Explorer shows your Desktop folder as it is. While padx runs, Windows' own desktop icons are
+hidden; quit padx and they are back, nothing missing.
+
+**The Desktop pad** — Whatever is in no other pad is in the Desktop pad, sorted like
+*Sort by → Item type*. When it is empty it stays out of sight; when something new lands on the
+desktop (a download, a new file) it pops up — sized to fit, clear of your other pads — and the
+newcomers blink.
+
 **Auto Organize** — One click sorts the whole desktop into category pads: System, Folders,
 Documents, Media, Office, Internet, Communication, Dev Tools, IT & Network, Design & CAD,
 Games, Utilities, Installers… Pads are sized to fit their icons exactly and laid out as a
 tidy table — aligned rows, aligned columns, even gaps. Locked pads are left alone.
-An **Accept / Revert** bar lets you undo the whole thing, file by file.
+An **Accept / Revert** bar lets you undo the whole thing. No file is moved, ever.
 
 **Smart categories, fully offline** — Shortcuts are judged by what they launch, not just
 their name: the target program, its product and company info, the real target of MSI
 "advertised" shortcuts, and game-engine detection (Unity, Unreal, Steam) for games no list
 could know. Built-in icons (This PC, Recycle Bin, your user folder) get their own System pad;
-all-users desktop shortcuts are included with one administrator prompt.
+shortcuts installed for all users are included too.
 
 **Look** — A minimalist "digital" style throughout. Per-pad colours, plus **Glass** and
 **Frost** materials with real blur-behind, adjustable tint and shine. Global opacity, corner
@@ -49,9 +59,9 @@ plain JSON file of *"English text": "translation"* pairs — see
 `de.json` in a `lang` folder next to `padx.exe` (or send it as a pull request).
 
 **Everyday comfort** — Ctrl + drag on empty desktop draws a new pad. The × hides a pad
-(bring hidden pads back from the tray or with a hotkey). Rename items inside pads. Open pad
-icons with a single or a double click. Restore everything to the desktop, sorted by type, in
-one step. Configurable global hotkeys.
+(bring hidden pads back from the tray or with a hotkey); on an empty pad it deletes the pad.
+Rename items inside pads — the real file is renamed. Open pad icons with a single or a double
+click. Configurable global hotkeys. padx appears right at sign-in.
 
 ## Screenshots
 
@@ -75,20 +85,24 @@ capture that live Windows effect.)
 
 ## How icons work
 
-Windows only draws the top level of your Desktop folder, so the only reliable way to take
-an icon off the desktop is to move the file. padx does exactly that, and keeps it close:
-
-- Each pad owns a hidden folder at `%USERPROFILE%\Desktop\.Paddock\<pad-id>`.
-- Dropping an item into a pad **moves** it there; dragging it out or deleting the pad moves
-  it **straight back** to the desktop. Nothing is ever deleted, no name is ever overwritten.
-- Items from elsewhere (a folder in Explorer) are only referenced, never moved.
+- **Nothing moves.** Every item stays in your Desktop folder; a pad only remembers which items
+  it shows. Renaming, opening, editing, *Add to archive*… all act on the real file.
+- **While padx runs**, Windows' own desktop icons are hidden (the desktop itself — wallpaper,
+  right-click menu, *New* — works as always), and every item is in a pad: what you did not put
+  anywhere is in the Desktop pad.
+- **Renames and deletions** made elsewhere (Explorer, an installer, an app saving a file) are
+  followed: pads point at the new name, and let go of what is gone.
+- **Quit padx** and Windows shows its icons again — every file is right where it always was.
+- **Upgrading from 2.x:** versions before 3.0 moved pad items into a hidden
+  `Desktop\.Paddock` folder. padx 3 moves them back onto the desktop once, and the pads keep
+  showing them.
 
 ## Download
 
 Get the latest version from **[Releases](https://github.com/serkanyardim/padx/releases)**:
 
 - **`padx-setup-v<version>.exe`** — installer. Installs for your user only (no administrator
-  rights), adds a Start menu entry, and on uninstall offers to move every icon back to the desktop.
+  rights) and adds a Start menu entry.
 - **`padx-v<version>-portable.exe`** — the app itself, nothing to install.
 
 Requires Windows 10 (1903+) or Windows 11, 64-bit. Nothing else — .NET is built in.
@@ -122,9 +136,8 @@ Nothing is installed.
 
 **Updating:** run the newer setup file; it replaces the old version and keeps your pads and settings.
 
-**Uninstalling:** **Settings → Apps → Installed apps → padx → Uninstall**. When asked
-*"Move every icon from your padx pads back to the desktop?"*, choose **Yes** so every file
-comes back onto your desktop.
+**Uninstalling:** **Settings → Apps → Installed apps → padx → Uninstall**. Your files never
+left the desktop, so once padx is gone Windows shows them all as before.
 
 ## Building from source
 
